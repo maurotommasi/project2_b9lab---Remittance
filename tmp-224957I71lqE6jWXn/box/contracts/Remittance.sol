@@ -1,102 +1,40 @@
+import "./Stoppable.sol";
+import "./SafeMath.sol";
+import "./Stoppable.sol";
+
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.4.25 <=0.7.0;
+pragma solidity 0.6.10;
 
-contract Remittance {
+contract Remittance is Stoppable {
 
-    struct keyDataStruct {
-        uint blockNumber;
-        bytes32 blockHash_;
-        uint blocktimestamp;
+    using SafeMath for uint; //Obsolate from Solidity 0.8.0
+
+    struct KeyData{
+        uint    blockNumber;
+        bytes32 blockHash;
+        uint    blocktimestamp; 
         address thisAddress;
-        uint amount;
+        bytes32 publicKey;
+        address sender;
+        uint    amount;
+        uint    duration;
     }
 
-    address payable owner;
-    bool restricted;
-
+    uint min_duration;
+    uint max_duration;
+    
     mapping(address => uint) balances;
-    mapping(address => bytes32) private publicKey;
-    mapping(address => keyDataStruct) private keyData;
-    
-    modifier onlyOwner {
-        require(owner == msg.sender);
-        _;
+    mapping(address => KeyData) myKeyData;
+
+    event KeyLog(address indexed sender, uint amount, address shop, uint duration, bytes32 publicKey);
+    event WithdrawBalanceLog(address shop, uint amount, address sender, bytes32 publicKey);
+    event LimitChangelog(address owner, uint min, uint max);
+
+    constructor() public {
+        min_duration = 1000;
+        max_duration = 10000;
     }
-
-    modifier isRestricted {
-        require(restricted);
-        _;
-    }
-
-    event ownerChangeLog(address indexed oldOwner, address indexed newOwner);
-    
-    constructor() {
-        owner = msg.sender;
-        restricted = true; //no one can access to password generator
-    }
-
-    function getRestricted() public view returns(bool){
-        return restricted;
-    }
-
-    function setRestricted(bool _restricted) onlyOwner private{
-        restricted = _restricted;
-    }
-
-    function getOwner() public view returns(address){
-        return owner;
-    }
-
-    function setOwner() public returns(bool){
-        require(msg.sender != owner && msg.sender != address(0x0));
-        address oldOwner = owner;
-        owner = msg.sender; 
-        emit ownerChangeLog(oldOwner, owner);
-        return true;
-    }
-
-    function generatePublicKey(address payable _address, uint _amount, bytes32 _key, address _shop) private onlyOwner isRestricted returns(bytes32){
-        uint blockNumber = block.number;
-        bytes32 blockHash = blockhash(blockNumber);
-        keyData[_shop].blockNumber = blockNumber;
-        keyData[_shop].blockHash_ = blockHash;
-        keyData[_shop].blocktimestamp = block.timestamp;
-        keyData[_shop].thisAddress = address(this);
-        keyData[_shop].amount = _amount;
-        return keccak256(abi.encodePacked(_address, _shop, blockNumber, blockHash, block.timestamp, address(this), _key));
-    }
-
-    function checkPrivateKey(bytes32 _key, address _address) public view onlyOwner returns(bool){
-        //mag.sender is who ask to check the key (Shop) => msg.sender = _shop
-        require(keyData[_address].blocktimestamp > 0, "The Key is expired");
-        require(keccak256(abi.encodePacked(_address, msg.sender, keyData[_address].blockNumber, keyData[_address].blockHash_, keyData[_address].blocktimestamp, keyData[_address].thisAddress,  _key)) == _key);
-        return true;
-    }
-
-    function withdrawShop(bytes32 _key1, bytes32 _key2) public payable onlyOwner returns(bool){
-        require(checkPrivateKey(_key1, owner));
-        require(checkPrivateKey(_key2, owner));
-        owner.transfer(keyData[owner].amount);
-    }
-
-    function clearKeydata(address _address) private returns(bool){
-        //only when I'm notified about the correct transaction
-        keyData[_address].blockNumber = 0;
-        keyData[_address].blockHash_ = bytes32("0");
-        keyData[_address].blocktimestamp = 0;
-        keyData[_address].thisAddress = address(0x0);
-        keyData[_address].amount = 0;
-
-    }
-
-    function newPublicKey(address payable _who, uint _amount, bytes32 _privateKey, address _beneficiary) public payable onlyOwner returns(bool){
-        setRestricted(false);
-        require(isComplex(_privateKey));
-        publicKey[_beneficiary] = generatePublicKey(_who, _amount, _privateKey, _beneficiary);
-        setRestricted(true); 
-    }
-
     function isComplex(bytes32 _privateKey) private pure returns(bool){
         // Complexity 1
         require(_privateKey.length < 10, "Key lenght can't be less of 10 characters");
@@ -111,9 +49,93 @@ contract Remittance {
         return true;
     }
 
-    function generateKeys(address _shop, bytes32 OTP1, bytes32 OTP2) public payable onlyOwner returns(bool A2B, bool A2C){
-        return (newPublicKey(owner, 0, OTP1, _shop), newPublicKey(owner, msg.value, OTP2, _shop));
+    function generateKey(bytes32 OTP1, bytes32 OTP2, address _shop, uint _duration) public payable returns(bytes32){
+
+        //OTP1 = One Time Password 1 (Beneficiary) - OTP2 = One Time Password 2 (Shop)
+
+        require(isComplex(OTP1) && isComplex(OTP2), "Not enough complexity on OTPs");
+        require(OTP1 != OTP2, "OTPs can't be the same");
+        require(_shop != address(0x0));
+        require(msg.sender != address(0x0));
+        require(msg.value > 0);
+        require(_duration >= 1000 && _duration <= 10000, "Duration cant be less than 1000 or grater then 10000"); 
+
+        uint blockNumber = block.number;
+        bytes32 blockHash = blockhash(blockNumber);
+        bytes32 publicKey = keccak256(abi.encodePacked(blockNumber, blockHash, block.timestamp, address(this), msg.sender, OTP1, OTP2, _shop));
+
+        myKeyData[_shop].blockNumber = blockNumber;
+        myKeyData[_shop].blockHash = blockHash;
+        myKeyData[_shop].blocktimestamp = block.timestamp;
+        myKeyData[_shop].publicKey = publicKey;
+        myKeyData[_shop].thisAddress = address(this);
+        myKeyData[_shop].sender = msg.sender;
+        myKeyData[_shop].amount = msg.value;
+        myKeyData[_shop].duration = _duration;
+
+        balances[msg.sender] = balances[msg.sender].add(msg.value);
+
+        emit KeyLog(msg.sender, msg.value, _shop, _duration, publicKey);
+        return publicKey;
+    }
+ 
+    function checkKeysAndWithdrawBalance(address _sender, bytes32 _privateKeyBeneficiary, bytes32 _privateKeyShop) public onlyIfRunning returns(bool){
+
+        KeyData memory keydata = myKeyData[msg.sender];  
+        uint blockNumber = block.number;
+        require(keydata.sender == _sender);
+        require(keydata.duration.add(blockNumber) < keydata.blockNumber);
+        require(keccak256(abi.encodePacked( keydata.blockNumber,
+                                            keydata.blockHash,
+                                            keydata.blocktimestamp,
+                                            keydata.thisAddress,
+                                            keydata.sender,
+                                            _privateKeyBeneficiary,
+                                            _privateKeyShop,
+                                            msg.sender)) == keydata.publicKey);
+
+        msg.sender.transfer(keydata.amount);
+        balances[keydata.sender].sub(keydata.amount);
+
+        emit WithdrawBalanceLog(msg.sender, keydata.amount, keydata.sender, keydata.publicKey);
+
+        return true;
+
     }
 
+    function withdrawOwnBalance(address _shopAddress,  bytes32 _privateKeyBeneficiary, bytes32 _privateKeyShop) public onlyIfRunning returns(bool){
 
+        KeyData memory keydata = myKeyData[msg.sender];  
+        uint blockNumber = block.number;
+
+        require(keydata.duration.add(blockNumber) >= keydata.blockNumber);
+        require(keccak256(abi.encodePacked( keydata.blockNumber,
+                                            keydata.blockHash,
+                                            keydata.blocktimestamp,
+                                            keydata.thisAddress,
+                                            msg.sender,
+                                            _privateKeyBeneficiary,
+                                            _privateKeyShop,
+                                            _shopAddress)) == keydata.publicKey);
+
+        emit WithdrawBalanceLog(msg.sender, keydata.amount, keydata.sender, keydata.publicKey);
+
+        return true;
+    }
+
+    function getBalance(address _address) public view returns(uint){
+        return balances[_address];
+    }
+
+    function getOwner() public view returns(address){
+        return owner;
+    }
+
+    function changeMinMaxDuration(uint _min, uint _max) public onlyOwner returns(bool){
+        require(_max > _min);
+        min_duration = _min;
+        max_duration = _max;
+        emit LimitChangelog(owner, _min, _max);
+    }
+    
 }
