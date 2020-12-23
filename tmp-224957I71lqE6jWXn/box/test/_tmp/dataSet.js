@@ -25,8 +25,8 @@ ownerFeeElements.forEach(fee => {
     });
 });
 
-if(showLog) console.log(validCreationTestSet);
-if(showLog) console.log(invalidCreationTestSet);
+//if(showLog) console.log(validCreationTestSet);
+//if(showLog) console.log(invalidCreationTestSet);
 
 module.exports = {
     validCreationTestSet: validCreationTestSet,

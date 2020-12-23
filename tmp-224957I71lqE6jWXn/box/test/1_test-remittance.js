@@ -14,7 +14,7 @@ contract("Remittance", accounts => {
     const GETH_SLOW_DURATION        = 90000;
     const DURATION_BLOCK            = 15;
     let showLog = true;
-    let showFullLog = false;
+    let showFullLog = true;
     let contractCreationCost;
     let sender, exchanger;
     let remittance;
@@ -69,16 +69,6 @@ contract("Remittance", accounts => {
         assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
         const currentBalance_after = await web3.eth.getBalance(exchanger);
         if(showLog) console.log("balance exchanger account after withdraw: " + currentBalance_after);
-    })
-
-    it("Can change owner (FAIL TEST)", async function () {
-        let failTest = false;
-        try {
-            const txObj = await remittance.changeOwner(new_owner, {from : owner});
-        } catch {
-            failTest = true;
-        }
-        assert(failTest);
     })
 
     it("Owner withdraws his fund", async function () {
