@@ -22,9 +22,7 @@ contract Remittance is Stoppable {
     bool isLocked = false;
     uint min_duration;
     uint max_duration;
-    uint ownerFeePercentage; // Applied to gas cost of this contract
     uint fee;
-    uint deployedGasCost;
 
     mapping(bytes32 => KeyData) public myKeyData;
 
@@ -33,6 +31,7 @@ contract Remittance is Stoppable {
     event WithdrawOwnerLog(address owner, uint amount);
     event ChangeDurationLog(address owner, uint min, uint max);
     event ChangeFeeLog(address owner, uint amount);
+
     constructor () public {
         min_duration = 1;
         max_duration = 20;
