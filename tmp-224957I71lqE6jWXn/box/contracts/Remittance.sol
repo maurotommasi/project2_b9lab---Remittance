@@ -32,17 +32,20 @@ contract Remittance is Stoppable {
     event ChangeDurationLog(address owner, uint min, uint max);
     event ChangeFeeLog(address owner, uint amount);
 
-    constructor () public {
-        min_duration = 1;
-        max_duration = 20;
-        fee = 150000000000000;
+    constructor (uint _min_duration, uint _max_duration, uint _fee) public {
+        require(_min_duration > uint(0) && _max_duration > uint(0) && _max_duration > _min_duration);
+        require(_fee >= uint(0));
+        min_duration = _min_duration;
+        max_duration = _max_duration;
+        fee = _fee;
+        isLocked = false;
     }
 
     function sendFundAndGenerateKey(address _exchangerAddress, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger, uint _duration) public payable onlyIfRunning returns(bytes32){
 
         require(_exchangerAddress != address(0x0));
         require(msg.sender != address(0x0));
-        require(msg.value > 0);
+        require(msg.value > uint(0));
         require(_duration > min_duration && _duration < max_duration, "Duration doesn't match the interval"); 
         require(bytes(_privateKeyBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
         require(bytes(_privateKeyBeneficiary).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
@@ -53,12 +56,12 @@ contract Remittance is Stoppable {
         myKeyData[publicKey].sender = msg.sender;
         myKeyData[publicKey].thisAddress = address(this);
         myKeyData[publicKey].exchangerAddress = _exchangerAddress;
-        myKeyData[publicKey].amount = msg.value - fee;
-        myKeyData[publicKey].expirationBlock = block.number + _duration;
+        myKeyData[publicKey].amount = msg.value.sub(fee);
+        myKeyData[publicKey].expirationBlock = block.number.add(_duration);
         myKeyData[publicKey].fee = fee;
-        ownerFund += fee;
+        ownerFund = ownerFund.add(fee);
 
-        emit KeyLog(msg.sender, msg.value - fee, _exchangerAddress, block.number + _duration, fee, publicKey);
+        emit KeyLog(msg.sender, msg.value.sub(fee) , _exchangerAddress, block.number.add(_duration), fee, publicKey);
         return publicKey;
     }
  
@@ -76,38 +79,45 @@ contract Remittance is Stoppable {
         require(keydata.exchangerAddress == _exchangerAddress, "Exchanger Address Dismatch");                     
         require((keydata.exchangerAddress == msg.sender && keydata.expirationBlock > block.number) || (keydata.sender == msg.sender && keydata.expirationBlock <= block.number), "Expiration Block or Address Dismatch");
 
-        //msg.sender.transfer(keydata.amount);
         require(!isLocked, "Reentrant call detected");
-        isLocked = true;
-        (bool success, ) = msg.sender.call{value : keydata.amount}("");
+        isLocked = true;  
         myKeyData[key].amount = 0;
         emit WithdrawAmountLog(msg.sender, keydata.amount, key);
+        (bool success, ) = msg.sender.call{value : keydata.amount}("");
+        require(success);
         isLocked = false;
         return success;
 
     }
 
     function changeDurationInterval(uint _min, uint _max) public onlyOwner returns(bool){
-        require(_max > _min && _min > 0 && _max > 0);
-        require(min_duration != _min || max_duration != _max);
+        require(_max > _min, "Min value can't be greater than Max value");
+        require(_min > 0 && _max > 0, "Values can't be less or equal to 0");
+        require(min_duration != _min && max_duration != _max, "Values are already set");
         min_duration = _min;
         max_duration = _max;
         emit ChangeDurationLog(msg.sender, _min, _max);
     }
 
     function setOwnerFee(uint _ownerFee) public onlyOwner returns(bool){
-        require(fee != _ownerFee);
+        require(fee != _ownerFee, "This fee is already set");
         fee = _ownerFee;
         emit ChangeFeeLog(msg.sender, _ownerFee);
     }
 
     function withdrawOwnerFees() public onlyOwner returns(bool){
+        require(ownerFund > 0, "No funds are available");
         require(!isLocked, "Reentrant call detected");
         isLocked = true;
-        (bool success, ) = msg.sender.call{value : ownerFund}("");
         emit WithdrawOwnerLog(msg.sender, ownerFund);
         ownerFund = 0;
+        (bool success, ) = msg.sender.call{value : ownerFund}("");
+        require(success);
         isLocked = false;
         return success;
+    }
+
+    fallback () external {
+        revert();
     }
  }
