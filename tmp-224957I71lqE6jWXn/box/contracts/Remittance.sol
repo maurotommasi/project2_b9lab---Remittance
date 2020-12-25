@@ -72,7 +72,7 @@ contract Remittance is Stoppable {
 
         KeyData memory keydata = myKeyData[key];
         
-        require(keydata.amount > 0, "Amount has to be greater than 0");
+        require(keydata.amount > uint(0), "Amount has to be greater than 0");
         require(keydata.sender != address(0x0), "Sender Address can't be null");   
         require(keydata.exchangerAddress != address(0x0), "Exchanger Address can't be null");                                                                  
         require(keydata.sender == _sender, "Sender Address Dismatch");
@@ -81,7 +81,7 @@ contract Remittance is Stoppable {
 
         require(!isLocked, "Reentrant call detected");
         isLocked = true;  
-        myKeyData[key].amount = 0;
+        myKeyData[key].amount = uint(0);
         emit WithdrawAmountLog(msg.sender, keydata.amount, key);
         (bool success, ) = msg.sender.call{value : keydata.amount}("");
         require(success);
@@ -92,7 +92,7 @@ contract Remittance is Stoppable {
 
     function changeDurationInterval(uint _min, uint _max) public onlyOwner returns(bool){
         require(_max > _min, "Min value can't be greater than Max value");
-        require(_min > 0 && _max > 0, "Values can't be less or equal to 0");
+        require(_min > uint(0) && _max > uint(0), "Values can't be less or equal to 0");
         require(min_duration != _min && max_duration != _max, "Values are already set");
         min_duration = _min;
         max_duration = _max;
@@ -101,6 +101,7 @@ contract Remittance is Stoppable {
 
     function setOwnerFee(uint _ownerFee) public onlyOwner returns(bool){
         require(fee != _ownerFee, "This fee is already set");
+        require(fee >= uint(0), "Fee can't be negative!");
         fee = _ownerFee;
         emit ChangeFeeLog(msg.sender, _ownerFee);
     }
@@ -110,7 +111,7 @@ contract Remittance is Stoppable {
         require(!isLocked, "Reentrant call detected");
         isLocked = true;
         emit WithdrawOwnerLog(msg.sender, ownerFund);
-        ownerFund = 0;
+        ownerFund = uint(0);
         (bool success, ) = msg.sender.call{value : ownerFund}("");
         require(success);
         isLocked = false;
