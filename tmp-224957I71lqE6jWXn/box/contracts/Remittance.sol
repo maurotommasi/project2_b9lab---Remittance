@@ -19,7 +19,7 @@ contract Remittance is Stoppable {
         uint    fee;
     }
 
-    bool isLocked = false;
+    bool isLocked;
     uint min_duration;
     uint max_duration;
     uint fee;
