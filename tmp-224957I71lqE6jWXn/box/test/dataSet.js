@@ -16,7 +16,6 @@ module.exports = function(_min_block_duration, _max_block_duration, _web3_owmer_
     const WEB3_OWNER_BALANCE_HALF = Math.floor(WEB3_OWNER_BALANCE / 2);
     const WEB3_OWNER_BALANCE_PLUS1 = WEB3_OWNER_BALANCE + 1;
 
-    const IS_VALID          = true;
     const ownerFeeElements  = [MIN_UINT, MIN_UINT_PLUS1, MAX_UINT,MAX_UINT_LESS_1];
     const minBlockDuration  = [MIN_BLOCK_DUR_LESS1, MIN_BLOCK_DURATION, MIN_BLOCK_DUR_PLUS1, MAX_BLOCK_DUR_LESS1, MAX_BLOCK_DURATION, MAX_BLOCK_DUR_PLUS1];
     const maxBlockDuration  = [MIN_BLOCK_DUR_LESS1, MIN_BLOCK_DURATION, MIN_BLOCK_DUR_PLUS1, MAX_BLOCK_DUR_LESS1, MAX_BLOCK_DURATION, MAX_BLOCK_DUR_PLUS1];
@@ -33,7 +32,7 @@ module.exports = function(_min_block_duration, _max_block_duration, _web3_owmer_
                     if(amount >= WEB3_OWNER_BALANCE) result = result && false;                  //GAS FEE INCLUDED
                     if(fee < 0 || min < 0 || max < 0 || amount < 0) result = result && false;
                     if(fee > amount && WEB3_OWNER_BALANCE < amount) result = result && false;
-                    if(min >= max) result = result && false;                                     //CHECK ALSO OVER-UNDERFLOW
+                    if(min >= max) result = result && false;                                     
                     //Push Result
                     testSet.push({isValid:result,fee:fee,amount:amount,min:min,max:max});
                 });

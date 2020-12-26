@@ -32,7 +32,7 @@ contract("Remittance", accounts => {
     // ----------------------------------------------------------------------------------------------- BEFORE 
 
     before("Should Set Accounts", async () => {
-        assert.isAtLeast(accounts.length, 3, 'There should be at least 3 accounts to do this test');
+        assert.isAtLeast(accounts.length, 4, 'There should be at least 4 accounts to do this test');
         sender = accounts[0];
         owner = sender,
         exchanger = accounts[1];
@@ -199,7 +199,7 @@ contract("Remittance", accounts => {
 
 
     // ----------------------------------------------------------------------------------------------- DEFINE DATASET
-    /*
+    
     let datasets_istance = require("./dataSet.js"); 
     const datasets = new datasets_istance(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, currente_owner_balance);
     let example_index_valid, example_index_invalid;
