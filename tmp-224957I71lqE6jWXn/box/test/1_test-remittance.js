@@ -199,7 +199,7 @@ contract("Remittance", accounts => {
 
 
     // ----------------------------------------------------------------------------------------------- DEFINE DATASET
-
+    /*
     let datasets_istance = require("./dataSet.js"); 
     const datasets = new datasets_istance(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, currente_owner_balance);
     let example_index_valid, example_index_invalid;
