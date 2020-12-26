@@ -19,7 +19,8 @@ contract("Remittance", accounts => {
     let showDataset                 = true;         //Only to show test dataset
 
     //let runDatasetTest              = false;     //It needs a lot of time! Be careful.
-    //let counter                     = 1; 
+    let counter                     = 0; 
+    let currente_owner_balance;
     let contractCost;
 
     let sender, exchanger, stranger;
@@ -28,30 +29,6 @@ contract("Remittance", accounts => {
     let amount = 5000000000000000;
     let owner, new_owner;
 
-    // ----------------------------------------------------------------------------------------------- DEFINE DATASET
-
-    /*
-    let datasets = require("./dataSet.js");
-
-    if(showDataset) console.log(" ########## DATASET INFO ##########");
-    if(showDataset) console.log(" + POSITIVE TEST: " + datasets.validCreationTestSet.length);
-    if(showDataset) console.log(" - NEGATIVE TEST: " + datasets.invalidCreationTestSet.length);
-
-    let validHalfIndex = Math.floor(datasets.validCreationTestSet.length / 2);
-    let invalidHalfIndex = Math.floor(datasets.invalidCreationTestSet.length / 2);
-
-    if(showDataset) console.log(" ------- VALID DATASET EXAMPLE");
-    if(showDataset) console.log(" Fee:" + datasets.validCreationTestSet[validHalfIndex].fee);
-    if(showDataset) console.log(" Amount:" + datasets.validCreationTestSet[validHalfIndex].amount);
-    if(showDataset) console.log(" Min Block Value:" + datasets.validCreationTestSet[validHalfIndex].min);
-    if(showDataset) console.log(" Max Block Value:" + datasets.validCreationTestSet[validHalfIndex].max);
-    if(showDataset) console.log(" ------- INVALID DATASET EXAMPLE");
-    if(showDataset) console.log(" Fee:" + datasets.invalidCreationTestSet[invalidHalfIndex].fee);
-    if(showDataset) console.log(" Amount:" + datasets.invalidCreationTestSet[invalidHalfIndex].amount);
-    if(showDataset) console.log(" Min Block Value:" + datasets.invalidCreationTestSet[invalidHalfIndex].min);
-    if(showDataset) console.log(" Max Block Value:" + datasets.invalidCreationTestSet[invalidHalfIndex].max);
-
-    */
     // ----------------------------------------------------------------------------------------------- BEFORE 
 
     before("Should Set Accounts", async () => {
@@ -73,6 +50,7 @@ contract("Remittance", accounts => {
         console.log("Contract Gas Cost (Wei): " + gasCost);
         console.log("Actual Owner Fee: " + OWNER_FEE);
     });
+
 
     // ----------------------------------------------------------------------------------------------- SINGLE TESTS 
     
@@ -189,6 +167,7 @@ contract("Remittance", accounts => {
     it("Can Change Owner", async function () {
         const txObj = await remittance.changeOwner(new_owner, {from : owner});
         assert.strictEqual(txObj.logs[0].args.newOwner, new_owner, "Owner Dismatch");
+        currente_owner_balance = await web3.eth.getBalance(new_owner);
     })
 
     it("Stranger can't Change Owner", async function () {
@@ -218,54 +197,104 @@ contract("Remittance", accounts => {
         assert(result);
     })
 
+
+    // ----------------------------------------------------------------------------------------------- DEFINE DATASET
+
+    let datasets_istance = require("./dataSet.js"); 
+    const datasets = new datasets_istance(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, currente_owner_balance);
+    let example_index_valid, example_index_invalid;
+
+    if(showDataset) console.log(" ########## DATASET INFO ##########");
+    for(let i = 0; i < datasets.length; i++) {
+        if(datasets[i].isValid) {
+            example_index_valid = i;
+            counter++; 
+        }
+    }
+
+    if(showDataset) console.log(" + POSITIVE TEST: " + counter);
+    counter = 0;
+
+    for(let i = 0; i < datasets.length; i++) {
+        if(!datasets[i].isValid) {
+            example_index_invalid = i;
+            counter++; 
+        }
+    }
+
+    if(showDataset) console.log(" - NEGATIVE TEST: " + counter);
+
+    let validHalfIndex = Math.floor(datasets.length / 2);
+    let invalidHalfIndex = Math.floor(datasets.length / 2);
+
+    if(showDataset) console.log(" ------- VALID DATASET EXAMPLE");
+    if(showDataset) console.log(" Fee:" + datasets[example_index_valid].fee);
+    if(showDataset) console.log(" Amount:" + datasets[example_index_valid].amount);
+    if(showDataset) console.log(" Min Block Value:" + datasets[example_index_valid].min);
+    if(showDataset) console.log(" Max Block Value:" + datasets[example_index_valid].max);
+    if(showDataset) console.log(" ------- INVALID DATASET EXAMPLE");
+    if(showDataset) console.log(" Fee:" + datasets[example_index_invalid].fee);
+    if(showDataset) console.log(" Amount:" + datasets[example_index_invalid].amount);
+    if(showDataset) console.log(" Min Block Value:" + datasets[example_index_invalid].min);
+    if(showDataset) console.log(" Max Block Value:" + datasets[example_index_invalid].max);
+
     // ----------------------------------------------------------------------------------------------- MASSIVE TEST (FROM DATASET) 
 
-        
     /*
 
-    ### not over ###
+    ### NOT OVER ###
 
+    counter = 0;
+    owner = new_owner;
 
-    datasets.validCreationTestSet.forEach(validTest => {
-        if(counter > 0) { //LOGIC NULL SET
-            it("Massive Test ID: " + counter, async function () {
-            
+    describe("#Remittance_massive_test(isValid, min_block_duration, max_block_duration, amount)", function () {
+        datasets.forEach(test => {
+            if(counter > 0) { //LOGIC NULL SET
+                if(test.isValid){
+                    it(`POSITIVE TEST (${test.isValid}, ${test.min}, ${test.max}, ${test.amount})`, async function () {
+                        
+                            
+                            // ------------------------------------- Owner Set Fee (Indipendently from Contract Cost)
 
-                // ------------------------------------- Owner Set Fee (Indipendently from Contract Cost)
+                            var txObj = await remittance.setOwnerFee(test.fee, {from : owner});
+                            assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
+                            assert.strictEqual(txObj.logs[0].args.amount.toString(10), test.fee.toString(10), "Fee Dismatch");
 
-                var txObj = await remittance.setOwnerFee(validTest.fee, {from : owner});
-                assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
-                assert.strictEqual(txObj.logs[0].args.amount.toString(10), validTest.fee.toString(10), "Fee Dismatch");
+                            // ------------------------------------- Change Duration
 
-                // ------------------------------------- Change Duration
+                            txObj = await remittance.changeDurationInterval(test.min, test.max, {from : owner});
+                            assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
+                            assert.strictEqual(txObj.logs[0].args.min.toString(10), test.min.toString(10), "Min Value Dismatch");
+                            assert.strictEqual(txObj.logs[0].args.max.toString(10), test.max.toString(10), "Max Value Dismatch");
 
-                txObj = await remittance.changeDurationInterval(validTest.min, validTest.max, {from : owner});
-                assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
-                assert.strictEqual(txObj.logs[0].args.min.toString(10), validTest.min.toString(10), "Min Value Dismatch");
-                assert.strictEqual(txObj.logs[0].args.max.toString(10), validTest.max.toString(10), "Max Value Dismatch");
+                            // ------------------------------------ Send Fund and Generate keys
 
-                // ------------------------------------ Send Fund and Generate keys
+                            txObj = await remittance.sendFundAndGenerateKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, DURATION_BLOCK, {from : sender, value : test.amount});
+                            assert.strictEqual(txObj.logs[0].args.sender, sender);
+                            fee = txObj.logs[0].args.fee;
+                            assert.strictEqual(txObj.logs[0].args.amount.toString(10), (test.amount - test.fee).toString(10));
+                            assert.strictEqual(txObj.logs[0].args.exchanger, exchanger);
+                            assert.strictEqual(txObj.logs[0].args.publicKey, web3.utils.soliditySha3(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER), "Public Key doesn't match the right value");
+                    
+                            // ------------------------------------ Withdraw Fund - From exchanger
 
-                txObj = await remittance.sendFundAndGenerateKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, DURATION_BLOCK, {from : sender, value : validTest.amount});
-                assert.strictEqual(txObj.logs[0].args.sender, sender);
-                fee = txObj.logs[0].args.fee;
-                assert.strictEqual(txObj.logs[0].args.amount.toString(10), (validTest.amount - validTest.fee).toString(10));
-                assert.strictEqual(txObj.logs[0].args.exchanger, exchanger);
-                assert.strictEqual(txObj.logs[0].args.publicKey, web3.utils.soliditySha3(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER), "Public Key doesn't match the right value");
-        
-                // ------------------------------------ Withdraw Fund - From exchanger
+                            txObj = await remittance.checkKeysAndWithdrawAmount(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, {from : exchanger});
+                            assert.strictEqual(txObj.logs[0].args.who, exchanger);
+                            assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
+                        
+                            // ------------------------------------ Owner withdraws his fund
 
-                txObj = await remittance.checkKeysAndWithdrawAmount(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, {from : exchanger});
-                assert.strictEqual(txObj.logs[0].args.who, exchanger);
-                assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
-            
-                // ------------------------------------ Owner withdraws his fund
+                            txObj = await remittance.withdrawOwnerFees({from : owner});
+                            assert.strictEqual(txObj.logs[0].args.owner, owner, "Owner Dismatch");
 
-                txObj = await remittance.withdrawOwnerFees({from : owner});
-                assert.strictEqual(txObj.logs[0].args.owner, owner, "Owner Dismatch");
-               })
-        }
-        counter++;
-    });
+                        });
+                        
+                    counter++;
+
+                }
+            }
+                
+        })
+    })
     */
-});
+})
