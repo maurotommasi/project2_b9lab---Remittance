@@ -19,11 +19,11 @@ module.exports = function(_min_block_duration, _max_block_duration, _actual_dura
 
 
 
-    let testSet = [{isValid:false,fee:0,amount:0,min:0,max:0}];      //testSet[0] = LOGIC NULL
+    let testSet = [{isValid:false,fee:0,amount:0,min:0,max:0,duration:0}];      //testSet[0] = LOGIC NULL
 
-    testSet.push({isValid:true,fee:100,amount:1000,min:5,max:50});
-    testSet.push({isValid:true,fee:1,amount:1000,min:2,max:60});
-    testSet.push({isValid:false,fee:1,amount:1000,min:2,max:60});
+    testSet.push({isValid:true,fee:100,amount:1000,min:5,max:50,duration:25});
+    testSet.push({isValid:true,fee:1,amount:1000,min:2,max:60,duration:30});
+    testSet.push({isValid:false,fee:1,amount:1000,min:2,max:60,duration:33});
     /*
 
         const ownerFeeElements  = [MIN_UINT, MIN_UINT_PLUS1, THOUSAND_WEI, MAX_UINT,MAX_UINT_LESS_1];

@@ -1,6 +1,6 @@
-const Remittance = artifacts.require("./Remittance.sol");
+ const Remittance = artifacts.require("./Remittance.sol");
 
-const expectedExceptionPromise = require("./util/expected_exception_testRPC_and_geth.js");
+//const expectedExceptionPromise = require("./util/expected_exception_testRPC_and_geth.js");
 
 contract("Remittance", accounts => {
 
@@ -349,3 +349,4 @@ contract("Remittance", accounts => {
       
     
 })
+
