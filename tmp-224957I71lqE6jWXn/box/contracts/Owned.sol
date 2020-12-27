@@ -18,6 +18,10 @@ contract Owned {
         owner = msg.sender;
     }
 
+    function getOwner() public view returns(address) {
+        return owner;
+    }
+
     function changeOwner(address newOwner) public onlyOwner returns(bool)
     {
         require(ownerFund == 0, "Can't change owner if own fund is not withdrawed");

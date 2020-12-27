@@ -20,7 +20,7 @@ contract("Remittance", accounts => {
 
     //let runDatasetTest              = false;     //It needs a lot of time! Be careful.
     let counter                     = 0; 
-    let currente_owner_balance;
+    let current_owner_balance;
     let contractCost;
 
     let sender, exchanger, stranger;
@@ -43,6 +43,7 @@ contract("Remittance", accounts => {
         const gasPrice = await web3.eth.getGasPrice();
         const gasCost = gasPrice * txReceipt.gasUsed;
         contractCost = gasCost;
+        current_owner_balance = await web3.eth.getBalance(new_owner); //For massive test purpouse
         console.log(" ########## CONTRACT TRANSACTION DATA ##########");
         console.log("Transaction Hash: " + remittance.transactionHash);
         console.log("Gas Price: " + gasPrice);
@@ -54,102 +55,91 @@ contract("Remittance", accounts => {
 
     // ----------------------------------------------------------------------------------------------- SINGLE TESTS 
     
-    it("Check Max Fee Owner", () => {
-            assert(OWNER_FEE <= contractCost, "Owner fee has to be less than the price in case the exchanger would like to deploy the contract by himself");
-    })
-    
-    it("Owner Should Set new Owner Fee", async function() {
-        const percentageFee = 5;
-        assert(percentageFee >= 0 && percentageFee <= 100);
-        const fee = Math.floor(contractCost * percentageFee / 100);
-        const txObj = await remittance.setOwnerFee(fee, {from : owner}); //5 % of the contract cost
-        assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
-        assert.strictEqual(txObj.logs[0].args.amount.toString(10), fee.toString(10), "Fee Dismatch");
-    })
+    describe("#SingleUnitTest", function() {
 
-    
-    it("Non Owner Should not Set new Owner Fee", async function() {
-        var result = false;
-        try {
+        it("Check Max Fee Owner", () => {
+                assert(OWNER_FEE <= contractCost, "Owner fee has to be less than the price in case the exchanger would like to deploy the contract by himself");
+        });
+        
+        it("Owner Should Set new Owner Fee", async function() {
             const percentageFee = 5;
             assert(percentageFee >= 0 && percentageFee <= 100);
             const fee = Math.floor(contractCost * percentageFee / 100);
-            const txObj = await remittance.setOwnerFee(fee, {from : stranger}); //5 % of the contract cost
-            assert.strictEqual(txObj.logs[0].args.owner.toString(10), stranger.toString(10), "Owner Dismatch");
+            const txObj = await remittance.setOwnerFee(fee, {from : owner}); //5 % of the contract cost
+            assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
             assert.strictEqual(txObj.logs[0].args.amount.toString(10), fee.toString(10), "Fee Dismatch");
-        } catch {
-            result = true;
-        }
-        assert(result);
-    })
+        });
 
-    it("Owner should Set a new Min/Max Duration", async function() {
-        const addDurationValue = 1;
-        const txObj = await remittance.changeDurationInterval(MIN_BLOCK_DURATION + addDurationValue, MAX_BLOCK_DURATION + addDurationValue, {from : owner});
-        assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
-        assert.strictEqual(txObj.logs[0].args.min.toString(10), (MIN_BLOCK_DURATION + addDurationValue).toString(10), "Min Value Dismatch");
-        assert.strictEqual(txObj.logs[0].args.max.toString(10), (MAX_BLOCK_DURATION + addDurationValue).toString(10), "Max Value Dismatch");
-    })
+        
+        it("Non Owner Should not Set new Owner Fee", async function() {
+            var result = false;
+            try {
+                const percentageFee = 5;
+                assert(percentageFee >= 0 && percentageFee <= 100);
+                const fee = Math.floor(contractCost * percentageFee / 100);
+                const txObj = await remittance.setOwnerFee(fee, {from : stranger}); //5 % of the contract cost
+                assert.strictEqual(txObj.logs[0].args.owner.toString(10), stranger.toString(10), "Owner Dismatch");
+                assert.strictEqual(txObj.logs[0].args.amount.toString(10), fee.toString(10), "Fee Dismatch");
+            } catch {
+                result = true;
+            }
+            assert(result);
+        });
 
-    it("Non Owner Should not Set a new Min/Max Duration", async function() {
-        var result = false;
-        try {
+        it("Owner should Set a new Min/Max Duration", async function() {
             const addDurationValue = 1;
-            const txObj = await remittance.changeDurationInterval(MIN_BLOCK_DURATION + addDurationValue, MAX_BLOCK_DURATION + addDurationValue, {from : stranger});
+            const txObj = await remittance.changeDurationInterval(MIN_BLOCK_DURATION + addDurationValue, MAX_BLOCK_DURATION + addDurationValue, {from : owner});
             assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
             assert.strictEqual(txObj.logs[0].args.min.toString(10), (MIN_BLOCK_DURATION + addDurationValue).toString(10), "Min Value Dismatch");
             assert.strictEqual(txObj.logs[0].args.max.toString(10), (MAX_BLOCK_DURATION + addDurationValue).toString(10), "Max Value Dismatch");
-        } catch {
-            result = true;
-        }
-        assert(result);
-    })
+        });
+
+        it("Non Owner Should not Set a new Min/Max Duration", async function() {
+            var result = false;
+            try {
+                const addDurationValue = 1;
+                const txObj = await remittance.changeDurationInterval(MIN_BLOCK_DURATION + addDurationValue, MAX_BLOCK_DURATION + addDurationValue, {from : stranger});
+                assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
+                assert.strictEqual(txObj.logs[0].args.min.toString(10), (MIN_BLOCK_DURATION + addDurationValue).toString(10), "Min Value Dismatch");
+                assert.strictEqual(txObj.logs[0].args.max.toString(10), (MAX_BLOCK_DURATION + addDurationValue).toString(10), "Max Value Dismatch");
+            } catch {
+                result = true;
+            }
+            assert(result);
+        });
 
 
-    it("Send Fund and Generate Keys", async function() {
-        const currentSenderBalance = await web3.eth.getBalance(sender);
-        assert(amount <= currentSenderBalance);
-        const txObj = await remittance.sendFundAndGenerateKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, DURATION_BLOCK, {from : sender, value : amount});
-        if(showFullLog) console.log("------------------------ txObj: ");
-        if(showFullLog) console.log(txObj);
-        if(showFullLog) console.log("------------------------ txObj.logs[0]: ");
-        if(showFullLog) console.log(txObj.logs[0]);
-        assert.strictEqual(txObj.logs[0].args.sender, sender);
-        fee = txObj.logs[0].args.fee;
-        if(showLog) console.log("Fee: " + fee);
-        assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
-        assert.strictEqual(txObj.logs[0].args.exchanger, exchanger);
-        assert.strictEqual(txObj.logs[0].args.publicKey, web3.utils.soliditySha3(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER), "Public Key doesn't match the right value");
-    })
+        it("Send Fund and Generate Keys", async function() {
+            const currentSenderBalance = await web3.eth.getBalance(sender);
+            assert(amount <= currentSenderBalance);
+            const txObj = await remittance.sendFundAndGenerateKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, DURATION_BLOCK, {from : sender, value : amount});
+            if(showFullLog) console.log("------------------------ txObj: ");
+            if(showFullLog) console.log(txObj);
+            if(showFullLog) console.log("------------------------ txObj.logs[0]: ");
+            if(showFullLog) console.log(txObj.logs[0]);
+            assert.strictEqual(txObj.logs[0].args.sender, sender);
+            fee = txObj.logs[0].args.fee;
+            if(showLog) console.log("Fee: " + fee);
+            assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
+            assert.strictEqual(txObj.logs[0].args.exchanger, exchanger);
+            assert.strictEqual(txObj.logs[0].args.publicKey, web3.utils.soliditySha3(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER), "Public Key doesn't match the right value");
+        });
 
-    it("Withdraw Fund - From exchanger", async function() {
-        const currentBalance_before = await web3.eth.getBalance(exchanger);
-        if(showLog) console.log("balance exchanger account before withdraw: " + currentBalance_before);
-        const txObj = await remittance.checkKeysAndWithdrawAmount(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, {from : exchanger});
-        if(showFullLog) console.log("------------------------ txObj: ");
-        if(showFullLog) console.log(txObj);
-        if(showFullLog) console.log("------------------------ txObj.logs[0]: ");
-        if(showFullLog) console.log(txObj.logs[0]);
-        assert.strictEqual(txObj.logs[0].args.who, exchanger);
-        assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
-        const currentBalance_after = await web3.eth.getBalance(exchanger);
-        if(showLog) console.log("balance exchanger account after withdraw: " + currentBalance_after);
-    })
+        it("Withdraw Fund - From exchanger", async function() {
+            const currentBalance_before = await web3.eth.getBalance(exchanger);
+            if(showLog) console.log("balance exchanger account before withdraw: " + currentBalance_before);
+            const txObj = await remittance.checkKeysAndWithdrawAmount(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, {from : exchanger});
+            if(showFullLog) console.log("------------------------ txObj: ");
+            if(showFullLog) console.log(txObj);
+            if(showFullLog) console.log("------------------------ txObj.logs[0]: ");
+            if(showFullLog) console.log(txObj.logs[0]);
+            assert.strictEqual(txObj.logs[0].args.who, exchanger);
+            assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
+            const currentBalance_after = await web3.eth.getBalance(exchanger);
+            if(showLog) console.log("balance exchanger account after withdraw: " + currentBalance_after);
+        });
 
-    it("Owner withdraws his fund", async function () {
-        const currentBalance_before = await web3.eth.getBalance(owner);
-        if(showLog) console.log("balance Owner account before withdraw: " + currentBalance_before);
-        const txObj = await remittance.withdrawOwnerFees({from : owner});
-        assert.strictEqual(txObj.logs[0].args.owner, owner, "Owner Dismatch");
-        if(showLog) console.log("Owner Fee: " + txObj.logs[0].args.amount.toString(10));
-        const currentBalance_after = await web3.eth.getBalance(owner);
-        if(showLog) console.log("balance Owner account after withdraw: " + currentBalance_after);
-    })
-
-    
-    it("Stranger can't withdraws Owner fund", async function () {
-        var result = false;
-        try {
+        it("Owner withdraws his fund", async function () {
             const currentBalance_before = await web3.eth.getBalance(owner);
             if(showLog) console.log("balance Owner account before withdraw: " + currentBalance_before);
             const txObj = await remittance.withdrawOwnerFees({from : owner});
@@ -157,121 +147,150 @@ contract("Remittance", accounts => {
             if(showLog) console.log("Owner Fee: " + txObj.logs[0].args.amount.toString(10));
             const currentBalance_after = await web3.eth.getBalance(owner);
             if(showLog) console.log("balance Owner account after withdraw: " + currentBalance_after);
-        } catch {
-            result = true;
-        }
-        assert(result);
-    })
+        });
 
-    
-    it("Can Change Owner", async function () {
-        const txObj = await remittance.changeOwner(new_owner, {from : owner});
-        assert.strictEqual(txObj.logs[0].args.newOwner, new_owner, "Owner Dismatch");
-        currente_owner_balance = await web3.eth.getBalance(new_owner);
-    })
+        
+        it("Stranger can't withdraws Owner fund", async function () {
+            var result = false;
+            try {
+                const currentBalance_before = await web3.eth.getBalance(owner);
+                const txObj = await remittance.withdrawOwnerFees({from : owner});
+                assert.strictEqual(txObj.logs[0].args.owner, owner, "Owner Dismatch");
+            } catch {
+                result = true;
+            }
+            assert(result);
+        });
 
-    it("Stranger can't Change Owner", async function () {
-        var result = false;
-        try {
-        const txObj = await remittance.changeOwner(stranger, {from : stranger});
-        assert.strictEqual(txObj.logs[0].args.newOwner, stranger, "Owner Dismatch");
-        } catch {
-            result = true;
-        }
-        assert(result);
-    })
+        
+        it("Can Change Owner", async function () {
+            const txObj = await remittance.changeOwner(new_owner, {from : owner});
+            assert.strictEqual(txObj.logs[0].args.newOwner, new_owner, "Owner Dismatch");
+        });
 
-    it("Owner Can Switch Stoppable", async function () {
-        const txObj = await remittance.runSwitch(true, {from : new_owner});
-        assert.strictEqual(txObj.logs[0].args.switchSetting, true, "Switch Dismatch");
-    })
+        it("Stranger can't Change Owner", async function () {
+            var result = false;
+            try {
+            const txObj = await remittance.changeOwner(stranger, {from : stranger});
+            assert.strictEqual(txObj.logs[0].args.newOwner, stranger, "Owner Dismatch");
+            } catch {
+                result = true;
+            }
+            assert(result);
+        });
 
-    it("Stranger can't Switch Stoppable", async function () {
-        var result = false;
-        try {
-        const txObj = await remittance.runSwitch(stranger, {from : stranger});
-        assert.strictEqual(txObj.logs[0].args.newOwner, stranger, "Switch Dismatch");
-        } catch {
-            result = true;
-        }
-        assert(result);
-    })
+        it("Owner Can Switch Stoppable", async function () {
+            const txObj = await remittance.runSwitch(true, {from : new_owner});
+            assert.strictEqual(txObj.logs[0].args.switchSetting, true, "Switch Dismatch");
+        });
 
-
-    // ----------------------------------------------------------------------------------------------- DEFINE DATASET
-    
-    let datasets_istance = require("./dataSet.js"); 
-    const datasets = new datasets_istance(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, currente_owner_balance);
-    let example_index_valid, example_index_invalid;
-
-    if(showDataset) console.log(" ########## DATASET INFO ##########");
-    for(let i = 0; i < datasets.length; i++) {
-        if(datasets[i].isValid) {
-            example_index_valid = i;
-            counter++; 
-        }
-    }
-
-    if(showDataset) console.log(" + POSITIVE TEST: " + counter);
-    counter = 0;
-
-    for(let i = 0; i < datasets.length; i++) {
-        if(!datasets[i].isValid) {
-            example_index_invalid = i;
-            counter++; 
-        }
-    }
-
-    if(showDataset) console.log(" - NEGATIVE TEST: " + counter);
-
-    let validHalfIndex = Math.floor(datasets.length / 2);
-    let invalidHalfIndex = Math.floor(datasets.length / 2);
-
-    if(showDataset) console.log(" ------- VALID DATASET EXAMPLE");
-    if(showDataset) console.log(" Fee:" + datasets[example_index_valid].fee);
-    if(showDataset) console.log(" Amount:" + datasets[example_index_valid].amount);
-    if(showDataset) console.log(" Min Block Value:" + datasets[example_index_valid].min);
-    if(showDataset) console.log(" Max Block Value:" + datasets[example_index_valid].max);
-    if(showDataset) console.log(" ------- INVALID DATASET EXAMPLE");
-    if(showDataset) console.log(" Fee:" + datasets[example_index_invalid].fee);
-    if(showDataset) console.log(" Amount:" + datasets[example_index_invalid].amount);
-    if(showDataset) console.log(" Min Block Value:" + datasets[example_index_invalid].min);
-    if(showDataset) console.log(" Max Block Value:" + datasets[example_index_invalid].max);
+        it("Stranger can't Switch Stoppable", async function () {
+            var result = false;
+            try {
+            const txObj = await remittance.runSwitch(stranger, {from : stranger});
+            assert.strictEqual(txObj.logs[0].args.newOwner, stranger, "Switch Dismatch");
+            } catch {
+                result = true;
+            }
+            assert(result);
+        });
+    });
 
     // ----------------------------------------------------------------------------------------------- MASSIVE TEST (FROM DATASET) 
 
-    /*
+    let TP_list = []; 
+    let TN_list = []; 
+    let FP_list = []; //Every test that goes here has to be checked 
+    let FN_list = []; //Every test that goes here has to be checked 
 
-    ### NOT OVER ###
+    //    ### NOT OVER ###
+
+     //  ## WE HAVE TO CREATE A CONFUTION MATRIX TO ANALYZE WELL OUR MASSIVE TEST RESPONSE ##
 
     counter = 0;
-    owner = new_owner;
+    //owner = new_owner;
 
-    describe("#Remittance_massive_test(isValid, min_block_duration, max_block_duration, amount)", function () {
+
+    describe("#Remittance_massive_test(isValid, amount, min, max, fee)", function () {
+
+        // ----------------------------------------------------------------------------------------------- DEFINE DATASET
+
+        console.log(new_owner);
+        console.log(owner);
+        let datasets_istance = require("./dataSet.js"); 
+        const datasets = new datasets_istance(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, DURATION_BLOCK);
+        let example_index_valid, example_index_invalid;
+
+        if(showDataset) console.log(" ########## DATASET INFO ##########");
+        for(let i = 0; i < datasets.length; i++) {
+            if(datasets[i].isValid) {
+                example_index_valid = i;
+                counter++; 
+            }
+        }
+
+        if(showDataset && counter != 1) console.log(" + POSITIVE TEST: " + counter);
+
+        counter = 0;
+
+        for(let i = 0; i < datasets.length; i++) {
+            if(!datasets[i].isValid) {
+                example_index_invalid = i;
+                counter++; 
+            }
+        }
+        
+        if(showDataset && counter != 1) console.log(" - NEGATIVE TEST: " + counter);
+
+        counter = 0;
+
+        if(showDataset) console.log(" ------- VALID DATASET EXAMPLE");
+        if(showDataset) console.log(" Fee:" + datasets[example_index_valid].fee);
+        if(showDataset) console.log(" Amount:" + datasets[example_index_valid].amount);
+        if(showDataset) console.log(" Min Block Value:" + datasets[example_index_valid].min);
+        if(showDataset) console.log(" Max Block Value:" + datasets[example_index_valid].max);
+        if(showDataset) console.log(" ------- INVALID DATASET EXAMPLE");
+        if(showDataset) console.log(" Fee:" + datasets[example_index_invalid].fee);
+        if(showDataset) console.log(" Amount:" + datasets[example_index_invalid].amount);
+        if(showDataset) console.log(" Min Block Value:" + datasets[example_index_invalid].min);
+        if(showDataset) console.log(" Max Block Value:" + datasets[example_index_invalid].max);
+
+        let result;
+        var txObj;
+
         datasets.forEach(test => {
             if(counter > 0) { //LOGIC NULL SET
-                if(test.isValid){
-                    it(`POSITIVE TEST (${test.isValid}, ${test.min}, ${test.max}, ${test.amount})`, async function () {
+
+                //if(counter > 1035) return; //Sample test
+                let pos_neg_test;
+                
+                if(test.isValid) pos_neg_test = "Positive TEST"; else pos_neg_test = "Negative TEST";
+
+                it("ID: " + counter + ")" + pos_neg_test + "(isValid, amount, min, max, fee) => " + `(${test.isValid}, ${test.amount}, ${test.min}, ${test.max}, ${test.fee})`, async function () {
+                    
+                        result = false;
+
+                        try {
+
                         
-                            
                             // ------------------------------------- Owner Set Fee (Indipendently from Contract Cost)
 
-                            var txObj = await remittance.setOwnerFee(test.fee, {from : owner});
-                            assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
-                            assert.strictEqual(txObj.logs[0].args.amount.toString(10), test.fee.toString(10), "Fee Dismatch");
+                            txObj = await remittance.setOwnerFee(test.fee, {from : new_owner});
+                            assert.strictEqual(txObj.logs[0].args.owner.toString(10), new_owner.toString(10), "Owner Dismatch");
+                            assert.strictEqual(web3.utils.toBN(txObj.logs[0].args.amount).toString(10), web3.utils.toBN(test.fee).toString(10), "Fee Dismatch");
 
                             // ------------------------------------- Change Duration
 
-                            txObj = await remittance.changeDurationInterval(test.min, test.max, {from : owner});
-                            assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
-                            assert.strictEqual(txObj.logs[0].args.min.toString(10), test.min.toString(10), "Min Value Dismatch");
-                            assert.strictEqual(txObj.logs[0].args.max.toString(10), test.max.toString(10), "Max Value Dismatch");
+                            txObj = await remittance.changeDurationInterval(test.min, test.max, {from : new_owner});
+                            assert.strictEqual(txObj.logs[0].args.owner.toString(10), new_owner.toString(10), "Owner Dismatch");
+                            assert.strictEqual(web3.utils.toBN(txObj.logs[0].args.min).toString(10), web3.utils.toBN(test.min).toString(10), "Min Value Dismatch");
+                            assert.strictEqual(web3.utils.toBN(txObj.logs[0].args.max).toString(10).toString(10), web3.utils.toBN(test.max).toString(10), "Max Value Dismatch");
 
                             // ------------------------------------ Send Fund and Generate keys
 
                             txObj = await remittance.sendFundAndGenerateKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, DURATION_BLOCK, {from : sender, value : test.amount});
                             assert.strictEqual(txObj.logs[0].args.sender, sender);
-                            fee = txObj.logs[0].args.fee;
+                            fee = web3.utils.toBN(txObj.logs[0].args.fee);
                             assert.strictEqual(txObj.logs[0].args.amount.toString(10), (test.amount - test.fee).toString(10));
                             assert.strictEqual(txObj.logs[0].args.exchanger, exchanger);
                             assert.strictEqual(txObj.logs[0].args.publicKey, web3.utils.soliditySha3(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER), "Public Key doesn't match the right value");
@@ -280,21 +299,53 @@ contract("Remittance", accounts => {
 
                             txObj = await remittance.checkKeysAndWithdrawAmount(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, {from : exchanger});
                             assert.strictEqual(txObj.logs[0].args.who, exchanger);
-                            assert.strictEqual(txObj.logs[0].args.amount.toString(10), (amount - fee).toString(10));
+                            assert.strictEqual(web3.utils.toBN(txObj.logs[0].args.amount).toString(10), web3.utils.toBN((test.amount - fee)).toString(10));
                         
                             // ------------------------------------ Owner withdraws his fund
 
-                            txObj = await remittance.withdrawOwnerFees({from : owner});
-                            assert.strictEqual(txObj.logs[0].args.owner, owner, "Owner Dismatch");
+                            txObj = await remittance.withdrawOwnerFees({from : new_owner});
+                            assert.strictEqual(txObj.logs[0].args.owner, new_owner, "Owner Dismatch");
 
-                        });
+                            if(test.isValid) {
+                                TP_list.push(counter);
+                                result = true;
+                                } else {
+                                    FP_list.push(counter);
+                                }
+
+                        } catch(e) {
+
+                            if(!test.isValid) {
+                                TN_list.push(counter); 
+                                result = true;
+                            } else {
+                                console.log(e);
+                                FN_list.push(counter);
+                            }
+
+                        } 
                         
-                    counter++;
+                        assert(result, "Error on Test");
+                        if(!result) return;
+                    });
+                    
 
                 }
-            }
                 
+                counter++;
+          
         })
+
+        it("Confusion Matrix Check", () => {
+            console.log("TP: " + TP_list.length);
+            console.log("TN: " + TN_list.length);
+            console.log("FP: " + FP_list.length);
+            console.log("FN: " + FN_list.length);
+            assert(FP_list.length == 0 && FN_list.length == 0, "Confusion matrix has bad results!");
+        });
     })
-    */
+
+
+      
+    
 })
