@@ -24,7 +24,10 @@ module.exports = function(_min_block_duration, _max_block_duration, _actual_dura
     testSet.push({isValid:true,fee:100,amount:1000,min:5,max:50,duration:25});
     testSet.push({isValid:true,fee:1,amount:1000,min:2,max:60,duration:30});
     testSet.push({isValid:false,fee:1,amount:1000,min:2,max:60,duration:33});
+    
     /*
+
+        ### ONLY FOR FUN PURPOUSE ###
 
         const ownerFeeElements  = [MIN_UINT, MIN_UINT_PLUS1, THOUSAND_WEI, MAX_UINT,MAX_UINT_LESS_1];
         const minBlockDuration  = [MIN_BLOCK_DUR_LESS1, MIN_BLOCK_DURATION, MIN_BLOCK_DUR_PLUS1, MY_BLOCK_DURATION_LESS1, MY_BLOCK_DURATION, MY_BLOCK_DURATION_PLUS1, MAX_BLOCK_DUR_LESS1, MAX_BLOCK_DURATION, MAX_BLOCK_DUR_PLUS1];

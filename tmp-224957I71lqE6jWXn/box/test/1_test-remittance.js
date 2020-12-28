@@ -1,6 +1,6 @@
  const Remittance = artifacts.require("./Remittance.sol");
 
-//const expectedExceptionPromise = require("./util/expected_exception_testRPC_and_geth.js");
+const expectedExceptionPromise = require("./util/expected_exception_testRPC_and_geth.js");
 
 contract("Remittance", accounts => {
 
@@ -205,7 +205,7 @@ contract("Remittance", accounts => {
 
     //    ### NOT OVER ###
 
-     //  ## WE HAVE TO CREATE A CONFUTION MATRIX TO ANALYZE WELL OUR MASSIVE TEST RESPONSE ##
+     //  ## WE HAVE TO CREATE A CONFUSION MATRIX TO ANALYZE WELL OUR MASSIVE TEST RESPONSE ##
 
     counter = 0;
     //owner = new_owner;
@@ -310,7 +310,7 @@ contract("Remittance", accounts => {
                                 TP_list.push(counter);
                                 result = true;
                                 } else {
-                                    FP_list.push(counter);
+                                    FP_list.push(counter); 
                                 }
 
                         } catch(e) {

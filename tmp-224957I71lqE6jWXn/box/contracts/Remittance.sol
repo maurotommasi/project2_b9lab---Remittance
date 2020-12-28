@@ -41,7 +41,7 @@ contract Remittance is Stoppable {
         isLocked = false;
     }
 
-    function sendFundAndGenerateKey(address _exchangerAddress, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger, uint _duration) public payable onlyIfRunning returns(bytes32){
+    function sendFundAndGenerateKey(address _exchangerAddress, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger, uint _duration) external payable onlyIfRunning returns(bytes32){
 
         require(_exchangerAddress != address(0x0));
         require(msg.sender != address(0x0));
@@ -106,7 +106,7 @@ contract Remittance is Stoppable {
         emit ChangeFeeLog(msg.sender, _ownerFee);
     }
 
-    function withdrawOwnerFees() public onlyOwner returns(bool){
+    function withdrawOwnerFees() external onlyOwner returns(bool){
         require(ownerFund > 0, "No funds are available");
         require(!isLocked, "Reentrant call detected");
         isLocked = true;

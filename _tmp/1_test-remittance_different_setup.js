@@ -300,7 +300,7 @@ contract("Remittance", accounts => {
 
                         } 
                         
-                        assert(result, "Error on Test");
+                        assert(result, "Error on Test ID " + counter);
                         if(!result) return;
                     });
                     
