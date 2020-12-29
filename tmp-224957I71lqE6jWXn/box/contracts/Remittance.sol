@@ -19,12 +19,14 @@ contract Remittance is Stoppable {
         uint    fee;
     }
 
+
     bool isLocked;
     uint min_duration;
     uint max_duration;
     uint fee;
 
     mapping(bytes32 => KeyData) public myKeyData;
+    mapping(bytes32 => bool) internal myKeyStore;
 
     event KeyLog(address indexed sender, uint amount, address exchanger, uint expirationBlock, uint fee, bytes32 publicKey);
     event WithdrawAmountLog(address who, uint amount, bytes32 publicKey);
@@ -53,12 +55,18 @@ contract Remittance is Stoppable {
 
         bytes32 publicKey = keccak256(abi.encodePacked(msg.sender, _exchangerAddress, bytes(_privateKeyBeneficiary), bytes(_privateKeyExchanger)));
 
+        bytes32 thisStoreKey = keccak256(abi.encodePacked(msg.sender, bytes(_privateKeyBeneficiary), bytes(_privateKeyExchanger)));
+        require(!myKeyStore[thisStoreKey], "Combo password already used from sender"); 
+
         myKeyData[publicKey].sender = msg.sender;
         myKeyData[publicKey].thisAddress = address(this);
         myKeyData[publicKey].exchangerAddress = _exchangerAddress;
         myKeyData[publicKey].amount = msg.value.sub(fee);
         myKeyData[publicKey].expirationBlock = block.number.add(_duration);
         myKeyData[publicKey].fee = fee;
+
+        myKeyStore[thisStoreKey] = true;
+
         ownerFund = ownerFund.add(fee);
 
         emit KeyLog(msg.sender, msg.value.sub(fee) , _exchangerAddress, block.number.add(_duration), fee, publicKey);
