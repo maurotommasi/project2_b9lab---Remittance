@@ -7,7 +7,7 @@ pragma solidity 0.6.10;
 
 contract Remittance is Stoppable {
 
-    using SafeMath for uint; //Obsolate from Solidity 0.8.0
+    using SafeMath for uint; //Depracated from Solidity 0.8.0
 
     struct KeyData{
         address sender;
