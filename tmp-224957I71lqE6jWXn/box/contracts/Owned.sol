@@ -10,7 +10,7 @@ contract Owned {
     event LogNewOwner(address sender, address oldOwner, address newOwner);
 
     modifier onlyOwner {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "Only Owner can run this part");
         _;
     }
 

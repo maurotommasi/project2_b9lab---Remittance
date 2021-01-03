@@ -1,6 +1,5 @@
 import "./Stoppable.sol";
 import "./SafeMath.sol";
-import "./Stoppable.sol";
 
 // SPDX-License-Identifier: MIT
 

@@ -1,7 +1,5 @@
  const Remittance = artifacts.require("./Remittance.sol");
 
-const expectedExceptionPromise = require("./util/expected_exception_testRPC_and_geth.js");
-
 contract("Remittance", accounts => {
 
     console.log(accounts);
@@ -12,11 +10,10 @@ contract("Remittance", accounts => {
     const MAX_BLOCK_DURATION        = 18;
     const PRIVATE_KEY_BENEFICIARY   = "One-Time-Password1";
     const PRIVATE_KEY_EXCHANGER     = "One-Time-Password2";
-    //const GETH_SLOW_DURATION        = 90000;
     const DURATION_BLOCK            = 15;
     let showLog                     = true;             //Only to show results data
     let showFullLog                 = false;         //Only to show full transaction data
-    let showDataset                 = true;         //Only to show test dataset
+    //let showDataset                 = true;         //Only to show test dataset
 
     //let runDatasetTest              = false;     //It needs a lot of time! Be careful.
     let counter                     = 0; 
@@ -30,7 +27,16 @@ contract("Remittance", accounts => {
     let owner, new_owner;
 
     // ----------------------------------------------------------------------------------------------- BEFORE 
-
+    function matchError(solidityExpectedError, e, showData = false){
+        const r = " -- Reason given: ";
+        const javascriptError = e.toString().substring(e.toString().indexOf(r) + r.length, e.toString().length - 1);
+        assert(solidityExpectedError === javascriptError, "Predicted errors dismatch!");
+        if(showData){
+            console.log("Solidity Error: " + solidityExpectedError);
+            console.log("Truffle Javascript Error: " + javascriptError);
+        }
+        return true;
+    }
     before("Should Set Accounts", async () => {
         assert.isAtLeast(accounts.length, 4, 'There should be at least 4 accounts to do this test');
         sender = accounts[0];
@@ -80,7 +86,8 @@ contract("Remittance", accounts => {
                 const txObj = await remittance.setOwnerFee(fee, {from : stranger}); //5 % of the contract cost
                 assert.strictEqual(txObj.logs[0].args.owner.toString(10), stranger.toString(10), "Owner Dismatch");
                 assert.strictEqual(txObj.logs[0].args.amount.toString(10), fee.toString(10), "Fee Dismatch");
-            } catch {
+            } catch(e) {
+                assert(matchError("Only Owner can run this part", e));
                 result = true;
             }
             assert(result);
@@ -102,7 +109,8 @@ contract("Remittance", accounts => {
                 assert.strictEqual(txObj.logs[0].args.owner.toString(10), owner.toString(10), "Owner Dismatch");
                 assert.strictEqual(txObj.logs[0].args.min.toString(10), (MIN_BLOCK_DURATION + addDurationValue).toString(10), "Min Value Dismatch");
                 assert.strictEqual(txObj.logs[0].args.max.toString(10), (MAX_BLOCK_DURATION + addDurationValue).toString(10), "Max Value Dismatch");
-            } catch {
+            } catch(e) {
+                assert(matchError("Only Owner can run this part", e));
                 result = true;
             }
             assert(result);
@@ -153,10 +161,10 @@ contract("Remittance", accounts => {
         it("Stranger can't withdraws Owner fund", async function () {
             var result = false;
             try {
-                const currentBalance_before = await web3.eth.getBalance(owner);
-                const txObj = await remittance.withdrawOwnerFees({from : owner});
+                const txObj = await remittance.withdrawOwnerFees({from : stranger});
                 assert.strictEqual(txObj.logs[0].args.owner, owner, "Owner Dismatch");
-            } catch {
+            } catch(e) {
+                assert(matchError("Only Owner can run this part", e));
                 result = true;
             }
             assert(result);
@@ -173,7 +181,8 @@ contract("Remittance", accounts => {
             try {
             const txObj = await remittance.changeOwner(stranger, {from : stranger});
             assert.strictEqual(txObj.logs[0].args.newOwner, stranger, "Owner Dismatch");
-            } catch {
+            } catch(e) {
+                assert(matchError("Only Owner can run this part", e));
                 result = true;
             }
             assert(result);
@@ -189,7 +198,8 @@ contract("Remittance", accounts => {
             try {
             const txObj = await remittance.runSwitch(stranger, {from : stranger});
             assert.strictEqual(txObj.logs[0].args.newOwner, stranger, "Switch Dismatch");
-            } catch {
+            } catch(e) {
+                assert(matchError("Only Owner can run this part", e, true));
                 result = true;
             }
             assert(result);
