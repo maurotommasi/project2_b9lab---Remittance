@@ -67,7 +67,7 @@ contract Remittance is Stoppable {
         uint newOwnerFund = ownerFund.add(fee);
 
         ownerFund = newOwnerFund;
-        emit KeyLog(_publicSecret, keydata.amount, block.number.add(_duration));
+        emit KeyLog(_publicSecret, keydata.amount, keydata.expirationBlock);
         emit OwnerFeeBalance(owner, newOwnerFund);
         return true;
     }
