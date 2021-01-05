@@ -39,15 +39,15 @@ contract Remittance is Stoppable {
         isLocked = false;
     }
 
-    function generatePublicKey(address _exchanger, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger) public view onlyIfRunning returns(bytes32){
+    function generatePublicKey(address _exchanger, string memory _secretBeneficiary, string memory _secretExchanger) public view onlyIfRunning returns(bytes32){
         require(_exchanger != address(0x0));
         require(msg.sender != address(0x0));
-        require(bytes(_privateKeyBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
-        require(bytes(_privateKeyBeneficiary).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
-        return keccak256(abi.encodePacked(msg.sender, _exchanger, bytes(_privateKeyBeneficiary), bytes(_privateKeyExchanger)));
+        require(bytes(_secretBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
+        require(bytes(_secretExchanger).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
+        return keccak256(abi.encodePacked(msg.sender, _exchanger, bytes(_secretBeneficiary), bytes(_secretExchanger)));
     }
 
-    function addFund(address _exchanger, bytes32 _publickKey, uint _duration) external payable onlyIfRunning returns(bool){
+    function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
 
         require(msg.sender != address(0x0));
         require(msg.value > uint(0));
@@ -55,7 +55,7 @@ contract Remittance is Stoppable {
 
         require(fee <= msg.value);
         
-        KeyData memory keydata = myKeyData[_publickKey];
+        KeyData memory keydata = myKeyData[_publicSecret];
 
         require(keydata.expirationBlock == uint(0)); //being min duration > 0, A non used value is set to 0 -> For the same exchanger, sender can't use the same passwords
         keydata.sender = msg.sender;
@@ -63,19 +63,19 @@ contract Remittance is Stoppable {
         keydata.amount = msg.value.sub(fee);
         keydata.expirationBlock = block.number.add(_duration);
 
-        myKeyData[_publickKey] = keydata;
+        myKeyData[_publicSecret] = keydata;
         uint newOwnerFund = ownerFund.add(fee);
 
         ownerFund = newOwnerFund;
-        emit KeyLog(_publickKey, keydata.amount, block.number.add(_duration));
+        emit KeyLog(_publicSecret, keydata.amount, block.number.add(_duration));
         emit OwnerFeeBalance(owner, newOwnerFund);
         return true;
     }
  
 
-    function checkKeysAndWithdrawAmount(bytes32 _publicKey) external onlyIfRunning returns(bool){
+    function checkKeysAndWithdrawAmount(bytes32 _publicSecret) external onlyIfRunning returns(bool){
 
-        KeyData memory keydata = myKeyData[_publicKey];
+        KeyData memory keydata = myKeyData[_publicSecret];
         
         require(keydata.amount > uint(0), "Amount has to be greater than 0"); // It means that is not withdrawed yet
         require(keydata.sender != address(0x0), "Sender Address can't be null");   
@@ -88,9 +88,9 @@ contract Remittance is Stoppable {
 
         isLocked = true;  
 
-        myKeyData[_publicKey].amount = uint(0); // It's withdrawed with success if .amount is 0
+        myKeyData[_publicSecret].amount = uint(0); // It's withdrawed with success if .amount is 0
 
-        emit WithdrawAmountLog(msg.sender, keydata.amount, _publicKey);
+        emit WithdrawAmountLog(msg.sender, keydata.amount, _publicSecret);
 
         (bool success, ) = msg.sender.call{value : keydata.amount}("");
 
