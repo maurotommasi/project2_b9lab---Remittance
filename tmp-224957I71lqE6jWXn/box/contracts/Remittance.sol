@@ -11,11 +11,9 @@ contract Remittance is Stoppable {
 
     struct KeyData{
         address sender;
-        address thisAddress;
-        address exchangerAddress;
+        address exchanger;
         uint    amount;
         uint    expirationBlock;
-        uint    fee;
     }
 
 
@@ -25,12 +23,11 @@ contract Remittance is Stoppable {
     uint fee;
 
     mapping(bytes32 => KeyData) public myKeyData;
-    mapping(bytes32 => bool) internal myKeyStore;
 
-    event KeyLog(address indexed sender, uint amount, address exchanger, uint expirationBlock, uint fee, bytes32 publicKey);
+    event KeyLog(bytes32 publicKey, uint amount, uint expirationBlock);
     event WithdrawAmountLog(address who, uint amount, bytes32 publicKey);
-    event WithdrawOwnerLog(address owner, uint amount);
     event ChangeDurationLog(address owner, uint min, uint max);
+    event OwnerFeeBalance(address owner, uint amount);
     event ChangeFeeLog(address owner, uint amount);
 
     constructor (uint _min_duration, uint _max_duration, uint _fee) public {
@@ -42,86 +39,108 @@ contract Remittance is Stoppable {
         isLocked = false;
     }
 
-    function sendFundAndGenerateKey(address _exchangerAddress, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger, uint _duration) external payable onlyIfRunning returns(bytes32){
+    function generatePublicKey(address _exchanger, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger) public view onlyIfRunning returns(bytes32){
+        require(_exchanger != address(0x0));
+        require(msg.sender != address(0x0));
+        require(bytes(_privateKeyBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
+        require(bytes(_privateKeyBeneficiary).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
+        return keccak256(abi.encodePacked(msg.sender, _exchanger, bytes(_privateKeyBeneficiary), bytes(_privateKeyExchanger)));
+    }
 
-        require(_exchangerAddress != address(0x0));
+    function addFund(address _exchanger, bytes32 _publickKey, uint _duration) external payable onlyIfRunning returns(bool){
+
         require(msg.sender != address(0x0));
         require(msg.value > uint(0));
         require(_duration > min_duration && _duration < max_duration, "Duration doesn't match the interval"); 
-        require(bytes(_privateKeyBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
-        require(bytes(_privateKeyBeneficiary).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
+
         require(fee <= msg.value);
+        
+        KeyData memory keydata = myKeyData[_publickKey];
 
-        bytes32 publicKey = keccak256(abi.encodePacked(msg.sender, _exchangerAddress, bytes(_privateKeyBeneficiary), bytes(_privateKeyExchanger)));
+        require(keydata.expirationBlock == uint(0)); //being min duration > 0, A non used value is set to 0 -> For the same exchanger, sender can't use the same passwords
+        keydata.sender = msg.sender;
+        keydata.exchanger = _exchanger;
+        keydata.amount = msg.value.sub(fee);
+        keydata.expirationBlock = block.number.add(_duration);
 
-        bytes32 thisStoreKey = keccak256(abi.encodePacked(msg.sender, bytes(_privateKeyBeneficiary), bytes(_privateKeyExchanger)));
-        require(!myKeyStore[thisStoreKey], "Combo password already used from sender"); 
+        myKeyData[_publickKey] = keydata;
+        uint newOwnerFund = ownerFund.add(fee);
 
-        myKeyData[publicKey].sender = msg.sender;
-        myKeyData[publicKey].thisAddress = address(this);
-        myKeyData[publicKey].exchangerAddress = _exchangerAddress;
-        myKeyData[publicKey].amount = msg.value.sub(fee);
-        myKeyData[publicKey].expirationBlock = block.number.add(_duration);
-        myKeyData[publicKey].fee = fee;
-
-        myKeyStore[thisStoreKey] = true;
-
-        ownerFund = ownerFund.add(fee);
-
-        emit KeyLog(msg.sender, msg.value.sub(fee) , _exchangerAddress, block.number.add(_duration), fee, publicKey);
-        return publicKey;
+        ownerFund = newOwnerFund;
+        emit KeyLog(_publickKey, keydata.amount, block.number.add(_duration));
+        emit OwnerFeeBalance(owner, newOwnerFund);
+        return true;
     }
  
 
-    function checkKeysAndWithdrawAmount(address _sender, address _exchangerAddress, string memory _privateKeyBeneficiary, string memory _privateKeyExchanger) external onlyIfRunning returns(bool){
+    function checkKeysAndWithdrawAmount(bytes32 _publicKey) external onlyIfRunning returns(bool){
 
-        bytes32 key = keccak256(abi.encodePacked( _sender, _exchangerAddress, _privateKeyBeneficiary, _privateKeyExchanger));
-
-        KeyData memory keydata = myKeyData[key];
+        KeyData memory keydata = myKeyData[_publicKey];
         
-        require(keydata.amount > uint(0), "Amount has to be greater than 0");
+        require(keydata.amount > uint(0), "Amount has to be greater than 0"); // It means that is not withdrawed yet
         require(keydata.sender != address(0x0), "Sender Address can't be null");   
-        require(keydata.exchangerAddress != address(0x0), "Exchanger Address can't be null");                                                                  
-        require(keydata.sender == _sender, "Sender Address Dismatch");
-        require(keydata.exchangerAddress == _exchangerAddress, "Exchanger Address Dismatch");                     
-        require((keydata.exchangerAddress == msg.sender && keydata.expirationBlock > block.number) || (keydata.sender == msg.sender && keydata.expirationBlock <= block.number), "Expiration Block or Address Dismatch");
+        require(keydata.exchanger != address(0x0), "Exchanger Address can't be null");                                                                  
+        require(keydata.sender == msg.sender || keydata.exchanger == msg.sender, "Addresses Dismatch");
+        require(keydata.expirationBlock > 0, "Expiration can't be null");                   
+        require((keydata.exchanger == msg.sender && keydata.expirationBlock > block.number) || (keydata.sender == msg.sender && keydata.expirationBlock <= block.number), "Expiration Block or Address Dismatch");
 
         require(!isLocked, "Reentrant call detected");
+
         isLocked = true;  
-        myKeyData[key].amount = uint(0);
-        emit WithdrawAmountLog(msg.sender, keydata.amount, key);
+
+        myKeyData[_publicKey].amount = uint(0); // It's withdrawed with success if .amount is 0
+
+        emit WithdrawAmountLog(msg.sender, keydata.amount, _publicKey);
+
         (bool success, ) = msg.sender.call{value : keydata.amount}("");
+
         require(success);
+
         isLocked = false;
+
         return success;
 
     }
 
     function changeDurationInterval(uint _min, uint _max) public onlyOwner returns(bool){
+
         require(_max > _min, "Min value can't be greater than Max value");
         require(_min > uint(0) && _max > uint(0), "Values can't be less or equal to 0");
         require(min_duration != _min && max_duration != _max, "Values are already set");
+
         min_duration = _min;
         max_duration = _max;
+
         emit ChangeDurationLog(msg.sender, _min, _max);
     }
 
     function setOwnerFee(uint _ownerFee) public onlyOwner returns(bool){
+
         require(fee != _ownerFee, "This fee is already set");
         require(fee >= uint(0), "Fee can't be negative!");
+
         fee = _ownerFee;
+
         emit ChangeFeeLog(msg.sender, _ownerFee);
     }
 
     function withdrawOwnerFees() external onlyOwner returns(bool){
+        
         require(ownerFund > 0, "No funds are available");
         require(!isLocked, "Reentrant call detected");
+
         isLocked = true;
-        emit WithdrawOwnerLog(msg.sender, ownerFund);
+
         ownerFund = uint(0);
+
+        emit OwnerFeeBalance(msg.sender, ownerFund);
+
         (bool success, ) = msg.sender.call{value : ownerFund}("");
+
         require(success);
+
         isLocked = false;
+
         return success;
     }
 
