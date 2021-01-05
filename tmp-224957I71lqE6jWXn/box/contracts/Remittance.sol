@@ -39,12 +39,17 @@ contract Remittance is Stoppable {
         isLocked = false;
     }
 
-    function generatePublicKey(address _exchanger, string memory _secretBeneficiary, string memory _secretExchanger) public view onlyIfRunning returns(bytes32){
-        require(_exchanger != address(0x0));
+    function generatePublicKey(address _address, string memory _secretBeneficiary, string memory _secretExchanger, bool _isSender) public view onlyIfRunning returns(bytes32){
+        require(_address != address(0x0));
         require(msg.sender != address(0x0));
         require(bytes(_secretBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
         require(bytes(_secretExchanger).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
-        return keccak256(abi.encodePacked(msg.sender, _exchanger, bytes(_secretBeneficiary), bytes(_secretExchanger)));
+        if(_isSender){ //order change the public password
+            return keccak256(abi.encodePacked(msg.sender, _address, bytes(_secretBeneficiary), bytes(_secretExchanger)));
+        } else {
+            return keccak256(abi.encodePacked(_address, msg.sender, bytes(_secretBeneficiary), bytes(_secretExchanger)));
+        }
+        
     }
 
     function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
@@ -67,7 +72,7 @@ contract Remittance is Stoppable {
         uint newOwnerFund = ownerFund.add(fee);
 
         ownerFund = newOwnerFund;
-        emit KeyLog(_publicSecret, keydata.amount, block.number.add(_duration));
+        emit KeyLog(_publicSecret, keydata.amount, keydata.expirationBlock);
         emit OwnerFeeBalance(owner, newOwnerFund);
         return true;
     }

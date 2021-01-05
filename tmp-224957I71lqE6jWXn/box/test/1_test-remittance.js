@@ -121,7 +121,7 @@ contract("Remittance", accounts => {
 
         it("Generate Public Key", async function() {
 
-            publicKey = await remittance.generatePublicKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, {from : sender});
+            publicKey = await remittance.generatePublicKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, true, {from : sender});
             if(showLog) console.log("------------------------ txObj: ");
             if(showLog) console.log(publicKey);
         
@@ -131,6 +131,7 @@ contract("Remittance", accounts => {
         it("Add Fund", async function() {
             const currentSenderBalance = await web3.eth.getBalance(sender);
             assert(amount <= currentSenderBalance);
+        
             const txObj = await remittance.addFund(exchanger, publicKey, DURATION_BLOCK, {from : sender, value : amount});
             if(showFullLog) console.log("------------------------ txObj: ");
             if(showFullLog) console.log(txObj);
@@ -143,6 +144,8 @@ contract("Remittance", accounts => {
         it("Withdraw Fund - From exchanger", async function() {
             const currentBalance_before = await web3.eth.getBalance(exchanger);
             if(showLog) console.log("balance exchanger account before withdraw: " + currentBalance_before);
+            const publicKeyExchanger = await remittance.generatePublicKey(sender, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, false, {from : exchanger});
+            assert.strictEqual(publicKeyExchanger, publicKey, "Public Key dismatch");
             const txObj = await remittance.checkKeysAndWithdrawAmount(publicKey, {from : exchanger});
             if(showFullLog) console.log("------------------------ txObj: ");
             if(showFullLog) console.log(txObj);
