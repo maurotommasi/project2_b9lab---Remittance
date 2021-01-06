@@ -23,9 +23,9 @@ contract Remittance is Stoppable, Safety {
 
     mapping(bytes32 => Remittance) public remittances;
 
-    event RemittanceLog(bytes32 publicKey, uint amount, uint expirationBlock);
-    event WithdrawAmountLog(address who, uint amount, bytes32 publicKey);
-    event ChangeDurationLog(address owner, uint min, uint max);
+    event RemittanceLog(bytes32 indexed publicKey, uint amount, uint expirationBlock);
+    event WithdrawAmountLog(bytes32 indexed publicKey, address who, uint amount);
+    event ChangeDurationLog(address indexed owner, uint min, uint max);
     event OwnerFeeBalance(address owner, uint amount);
     event ChangeFeeLog(address owner, uint amount);
 
