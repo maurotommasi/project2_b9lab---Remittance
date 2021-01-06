@@ -33,7 +33,7 @@ contract("Remittance", accounts => {
     function matchError(solidityExpectedError, e, showData = false){
         const r = " -- Reason given: ";
         const javascriptError = e.toString().substring(e.toString().indexOf(r) + r.length, e.toString().length - 1);
-        assert(solidityExpectedError === javascriptError, "Predicted errors dismatch!");
+        assert.strictEqual(solidityExpectedError, javascriptError, "Predicted errors dismatch!");
         if(showData){
             console.log("Solidity Error: " + solidityExpectedError);
             console.log("Truffle Javascript Error: " + javascriptError);
