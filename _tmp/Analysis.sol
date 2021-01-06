@@ -4,7 +4,7 @@ import "./Remittance.sol";
 
 pragma solidity 0.6.10;
 
-contract Safety {
+contract Analysis {
 
     uint u0;
     uint u1;
