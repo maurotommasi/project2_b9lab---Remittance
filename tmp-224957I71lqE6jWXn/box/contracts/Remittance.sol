@@ -102,8 +102,8 @@ contract Remittance is Stoppable, Safety {
         require(_min > uint(0) && _max > uint(0), "Values can't be less or equal to 0");
         require(min_duration != _min && max_duration != _max, "Values are already set");
 
-        min_duration = _min;
-        max_duration = _max;
+        if(min_duration != _min) min_duration = _min; //i can save gas on write if 1 of 2 has the same value of existing parameter
+        if(max_duration != _max) max_duration = _max;
 
         emit ChangeDurationLog(msg.sender, _min, _max);
     }

@@ -29,7 +29,7 @@ contract("Remittance", accounts => {
     let owner, new_owner;
 
     // ----------------------------------------------------------------------------------------------- BEFORE 
-
+    
     function matchError(solidityExpectedError, e, showData = false){
         const r = " -- Reason given: ";
         const javascriptError = e.toString().substring(e.toString().indexOf(r) + r.length, e.toString().length - 1);
