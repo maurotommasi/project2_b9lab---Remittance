@@ -5,11 +5,11 @@ contract("Remittance", accounts => {
     console.log(accounts);
     
     //const MAX_GAS                   = 2000000000;
-    const OWNER_FEE                 = web3.utils.toBN(15000000000).toString(10);
+    const OWNER_FEE                 = web3.utils.toBN(web3.utils.toWei('500', "gwei"));
     const MIN_BLOCK_DURATION        = 1;
     const MAX_BLOCK_DURATION        = 18;
-    const PRIVATE_KEY_BENEFICIARY   = "One-Time-Password1";
-    const PRIVATE_KEY_EXCHANGER     = "One-Time-Password2";
+    const SECRET_BENEFICIARY   = "One-Time-Password1";
+    const SECRET_EXCHANGER     = "One-Time-Password2";
     const DURATION_BLOCK            = 15;
     let showLog                     = true;             //Only to show results data
     let showFullLog                 = true;         //Only to show full transaction data
@@ -29,6 +29,7 @@ contract("Remittance", accounts => {
     let owner, new_owner;
 
     // ----------------------------------------------------------------------------------------------- BEFORE 
+
     function matchError(solidityExpectedError, e, showData = false){
         const r = " -- Reason given: ";
         const javascriptError = e.toString().substring(e.toString().indexOf(r) + r.length, e.toString().length - 1);
@@ -121,11 +122,11 @@ contract("Remittance", accounts => {
 
         it("Generate Public Key", async function() {
 
-            publicKey = await remittance.generatePublicKey(exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, true, {from : sender});
+            publicKey = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
             if(showLog) console.log("------------------------ txObj: ");
             if(showLog) console.log(publicKey);
         
-            assert.strictEqual(publicKey, web3.utils.soliditySha3(sender, exchanger, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER), "Public Key doesn't match the right value");
+            assert.strictEqual(publicKey, web3.utils.soliditySha3(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER), "Public Key doesn't match the right value");
         });
 
         it("Add Fund", async function() {
@@ -144,7 +145,7 @@ contract("Remittance", accounts => {
         it("Withdraw Fund - From exchanger", async function() {
             const currentBalance_before = await web3.eth.getBalance(exchanger);
             if(showLog) console.log("balance exchanger account before withdraw: " + currentBalance_before);
-            const publicKeyExchanger = await remittance.generatePublicKey(sender, PRIVATE_KEY_BENEFICIARY, PRIVATE_KEY_EXCHANGER, false, {from : exchanger});
+            const publicKeyExchanger = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger});
             assert.strictEqual(publicKeyExchanger, publicKey, "Public Key dismatch");
             const txObj = await remittance.checkKeysAndWithdrawAmount(publicKey, {from : exchanger});
             if(showFullLog) console.log("------------------------ txObj: ");

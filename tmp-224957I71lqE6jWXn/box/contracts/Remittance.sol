@@ -1,30 +1,29 @@
+// SPDX-License-Identifier: MIT
+
 import "./Stoppable.sol";
 import "./SafeMath.sol";
-
-// SPDX-License-Identifier: MIT
+import "./Safety.sol";
 
 pragma solidity 0.6.10;
 
-contract Remittance is Stoppable {
+contract Remittance is Stoppable, Safety {
 
     using SafeMath for uint; //Depracated from Solidity 0.8.0
 
-    struct KeyData{
+    struct Remittance{
         address sender;
         address exchanger;
         uint    amount;
         uint    expirationBlock;
     }
 
-
-    bool isLocked;
     uint min_duration;
     uint max_duration;
     uint fee;
 
-    mapping(bytes32 => KeyData) public myKeyData;
+    mapping(bytes32 => Remittance) public remittances;
 
-    event KeyLog(bytes32 publicKey, uint amount, uint expirationBlock);
+    event RemittanceLog(bytes32 publicKey, uint amount, uint expirationBlock);
     event WithdrawAmountLog(address who, uint amount, bytes32 publicKey);
     event ChangeDurationLog(address owner, uint min, uint max);
     event OwnerFeeBalance(address owner, uint amount);
@@ -39,17 +38,12 @@ contract Remittance is Stoppable {
         isLocked = false;
     }
 
-    function generatePublicKey(address _address, string memory _secretBeneficiary, string memory _secretExchanger, bool _isSender) public view onlyIfRunning returns(bytes32){
-        require(_address != address(0x0));
-        require(msg.sender != address(0x0));
+    function generatePublicKey(address _sender, address _exchanger, string memory _secretBeneficiary, string memory _secretExchanger) public view onlyIfRunning returns(bytes32){
+        require(_sender != address(0x0));
+        require(_exchanger != address(0x0));
         require(bytes(_secretBeneficiary).length > 10, "Beneficiary's Private Key lenght should be greater than 10 characters");
         require(bytes(_secretExchanger).length > 10, "Exchanger's Private Key lenght should be greater than 10 characters");
-        if(_isSender){ //order change the public password
-            return keccak256(abi.encodePacked(msg.sender, _address, bytes(_secretBeneficiary), bytes(_secretExchanger)));
-        } else {
-            return keccak256(abi.encodePacked(_address, msg.sender, bytes(_secretBeneficiary), bytes(_secretExchanger)));
-        }
-        
+        return keccak256(abi.encodePacked(_sender, _exchanger, bytes(_secretBeneficiary), bytes(_secretExchanger)));        
     }
 
     function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
@@ -60,48 +54,43 @@ contract Remittance is Stoppable {
 
         require(fee <= msg.value);
         
-        KeyData memory keydata = myKeyData[_publicSecret];
+        Remittance memory remittance = remittances[_publicSecret]; //It should be all zero-values
 
-        require(keydata.expirationBlock == uint(0)); //being min duration > 0, A non used value is set to 0 -> For the same exchanger, sender can't use the same passwords
-        keydata.sender = msg.sender;
-        keydata.exchanger = _exchanger;
-        keydata.amount = msg.value.sub(fee);
-        keydata.expirationBlock = block.number.add(_duration);
+        require(remittance.expirationBlock == uint(0)); //being min duration > 0, A non used value is set to 0 -> For the same exchanger, sender can't use the same passwords
+        remittance.sender = msg.sender;
+        remittance.exchanger = _exchanger;
+        remittance.amount = msg.value.sub(fee);
+        remittance.expirationBlock = block.number.add(_duration);
 
-        myKeyData[_publicSecret] = keydata;
+        remittances[_publicSecret] = remittance; //I'm asking to write only 1 time all data
+
         uint newOwnerFund = ownerFund.add(fee);
 
         ownerFund = newOwnerFund;
-        emit KeyLog(_publicSecret, keydata.amount, keydata.expirationBlock);
+        emit RemittanceLog(_publicSecret, remittance.amount, remittance.expirationBlock);
         emit OwnerFeeBalance(owner, newOwnerFund);
         return true;
     }
  
 
-    function checkKeysAndWithdrawAmount(bytes32 _publicSecret) external onlyIfRunning returns(bool){
+    function checkKeysAndWithdrawAmount(bytes32 _publicSecret) external onlyIfRunning ReentranceCallDetection returns(bool){
 
-        KeyData memory keydata = myKeyData[_publicSecret];
+        Remittance memory remittance = remittances[_publicSecret]; //I'm asking 1 time to read data avoiding to ask again for each data
         
-        require(keydata.amount > uint(0), "Amount has to be greater than 0"); // It means that is not withdrawed yet
-        require(keydata.sender != address(0x0), "Sender Address can't be null");   
-        require(keydata.exchanger != address(0x0), "Exchanger Address can't be null");                                                                  
-        require(keydata.sender == msg.sender || keydata.exchanger == msg.sender, "Addresses Dismatch");
-        require(keydata.expirationBlock > 0, "Expiration can't be null");                   
-        require((keydata.exchanger == msg.sender && keydata.expirationBlock > block.number) || (keydata.sender == msg.sender && keydata.expirationBlock <= block.number), "Expiration Block or Address Dismatch");
+        require(remittance.amount > uint(0), "Amount has to be greater than 0"); // It means that is not withdrawed yet
+        require(remittance.sender != address(0x0), "Sender Address can't be null");   
+        require(remittance.exchanger != address(0x0), "Exchanger Address can't be null");                                                                  
+        require(remittance.sender == msg.sender || remittance.exchanger == msg.sender, "Addresses Dismatch");
+        require(remittance.expirationBlock > 0, "Expiration can't be null");                   
+        require((remittance.exchanger == msg.sender && remittance.expirationBlock > block.number) || (remittance.sender == msg.sender && remittance.expirationBlock <= block.number), "Expiration Block or Address Dismatch");
 
-        require(!isLocked, "Reentrant call detected");
+        remittances[_publicSecret].amount = uint(0); // It's withdrawed with success if .amount is 0 // I write only on .amount location
 
-        isLocked = true;  
+        emit WithdrawAmountLog(msg.sender, remittance.amount, _publicSecret);
 
-        myKeyData[_publicSecret].amount = uint(0); // It's withdrawed with success if .amount is 0
-
-        emit WithdrawAmountLog(msg.sender, keydata.amount, _publicSecret);
-
-        (bool success, ) = msg.sender.call{value : keydata.amount}("");
+        (bool success, ) = msg.sender.call{value : remittance.amount}("");
 
         require(success);
-
-        isLocked = false;
 
         return success;
 
@@ -129,12 +118,9 @@ contract Remittance is Stoppable {
         emit ChangeFeeLog(msg.sender, _ownerFee);
     }
 
-    function withdrawOwnerFees() external onlyOwner returns(bool){
+    function withdrawOwnerFees() external onlyOwner ReentranceCallDetection returns(bool){
         
         require(ownerFund > 0, "No funds are available");
-        require(!isLocked, "Reentrant call detected");
-
-        isLocked = true;
 
         ownerFund = uint(0);
 
@@ -143,8 +129,6 @@ contract Remittance is Stoppable {
         (bool success, ) = msg.sender.call{value : ownerFund}("");
 
         require(success);
-
-        isLocked = false;
 
         return success;
     }
