@@ -6,12 +6,12 @@ pragma solidity 0.6.10;
 
 contract Stoppable is Owned {
 
-    bool public running;
+    bool internal running;
     
     event LogRunSwitch(address sender, bool switchSetting);
 
     modifier onlyIfRunning {
-        require(running);
+        require(running, "Stoppable.onlyIfRunning#001 : Only if running dismatch");
         _;
     }
 
@@ -19,9 +19,10 @@ contract Stoppable is Owned {
         running = true;
     }
 
-    function runSwitch(bool onOff) public onlyOwner returns(bool){
-        running = onOff;
-        LogRunSwitch(msg.sender, onOff);
+    function runSwitch() public onlyOwner returns(bool){
+        bool actualRunning = running;
+        running = !actualRunning;
+        LogRunSwitch(msg.sender, !actualRunning);
         return true;
     }
 

@@ -5,9 +5,8 @@ pragma solidity 0.6.10;
 contract Owned {
 
     address public owner;
-    uint public ownerFund;
-
-    event LogNewOwner(address sender, address oldOwner, address newOwner);
+    
+    event LogNewOwner(address indexed oldOwner, address indexed newOwner, uint timestamp);
 
     modifier onlyOwner {
         require(msg.sender == owner, "Only Owner can run this part");
@@ -18,15 +17,16 @@ contract Owned {
         owner = msg.sender;
     }
 
-    function getOwner() public view returns(address) {
-        return owner;
-    }
-
-    function changeOwner(address newOwner) public onlyOwner returns(bool)
+    function changeOwner(address _newOwner) public returns(bool)
     {
-        require(ownerFund == 0, "Can't change owner if own fund is not withdrawed");
-        emit LogNewOwner(msg.sender, owner, newOwner);
-        owner = newOwner;
+        address actualOwner = owner;
+
+        require(msg.sender == actualOwner, "Only Owner can run this part");
+
+        owner = _newOwner;
+
+        emit LogNewOwner(actualOwner, _newOwner, block.timestamp);
+
         return true;
     }
 
