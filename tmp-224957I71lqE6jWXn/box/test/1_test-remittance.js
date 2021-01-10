@@ -237,14 +237,6 @@ contract("Remittance", accounts => {
                 const publicSecret_1 = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
                 assert(await remittance.addFund(exchanger, publicSecret_1, shortDuration, {from : sender, value : AMOUNT}));
 
-                // Some new blocks
-
-                const publicSecret_2 = await remittance.generatePublicKey(stranger, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger});
-                assert(await remittance.addFund(exchanger, publicSecret_2, DURATION_BLOCK, {from : stranger, value : AMOUNT})); 
-
-                const publicSecret_3 = await remittance.generatePublicKey(owner, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : owner});
-                assert(await remittance.addFund(exchanger, publicSecret_3, DURATION_BLOCK, {from : owner, value : AMOUNT}));
-
                 assert(await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret_1, {from : exchanger})); // exchanger check keys
 
                  // Some new blocks
