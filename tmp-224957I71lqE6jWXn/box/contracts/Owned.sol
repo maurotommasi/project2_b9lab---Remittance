@@ -6,10 +6,10 @@ contract Owned {
 
     address public owner;
     
-    event LogNewOwner(address indexed oldOwner, address indexed newOwner, uint timestamp);
+    event LogNewOwner(address indexed oldOwner, address indexed newOwner);
 
     modifier onlyOwner {
-        require(msg.sender == owner, "Only Owner can run this part");
+        require(msg.sender == owner, "Owned.onlyOwner#001 : Only Owner can run this part");
         _;
     }
 
@@ -21,11 +21,11 @@ contract Owned {
     {
         address actualOwner = owner;
 
-        require(msg.sender == actualOwner, "Only Owner can run this part");
+        require(msg.sender == actualOwner, "Owned.changeOwner#001 : Only Owner can run this part");
 
         owner = _newOwner;
 
-        emit LogNewOwner(actualOwner, _newOwner, block.timestamp);
+        emit LogNewOwner(actualOwner, _newOwner);
 
         return true;
     }

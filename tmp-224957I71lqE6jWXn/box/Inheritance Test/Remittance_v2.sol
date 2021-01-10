@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-import "./Stoppable.sol";
+import "./Stoppable_v2.sol";
 import "./SafeMath.sol";
 
 pragma solidity 0.6.10;
 
-contract Remittance is Stoppable {
+contract Remittance {
+
+    Stoppable stoppableIstance;
 
     using SafeMath for uint; //Depracated from Solidity 0.8.0
 
@@ -39,6 +41,7 @@ contract Remittance is Stoppable {
         min_duration = _min_duration;
         max_duration = _max_duration;
         fee = _fee;
+        stoppableIstance = (new Stoppable)(address(this), msg.sender);
     }
 
     function generatePublicKey(address _sender, address _exchanger, bytes32 _secretBeneficiary, bytes32 _secretExchanger) public view returns(bytes32){
@@ -47,8 +50,10 @@ contract Remittance is Stoppable {
         return keccak256(abi.encodePacked(_sender, _exchanger, _secretBeneficiary, _secretExchanger, address(this)));        
     }
 
-    function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
+    function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable returns(bool){
 
+        require(stoppableIstance.onlyIfRunning);
+        
         require(msg.value > uint(0), "Remittance.addFund#001 : msg.value can't be 0");
         require(_duration >= min_duration && _duration <= max_duration, "Remittance.addFund#002 : Duration doesn't match the interval"); 
         
@@ -92,10 +97,7 @@ contract Remittance is Stoppable {
         emit RemittanceStatusLog(_publicSecret, RemittanceState.Checked);
         emit WithdrawAmountLog(msg.sender, remittance.amount);
 
-        (bool success, ) = msg.sender.call{value : remittance.amount}("");
-        require(success);
-
-        //msg.sender.transfer(remittance.amount);
+        msg.sender.transfer(remittance.amount);
 
         return true;
 
@@ -114,10 +116,7 @@ contract Remittance is Stoppable {
         emit RemittanceStatusLog(_publicSecret, RemittanceState.Expired);
         emit WithdrawAmountLog(msg.sender, remittance.amount);
 
-        (bool success, ) = msg.sender.call{value : remittance.amount}("");
-        require(success);
-
-        //msg.sender.transfer(remittance.amount);
+        msg.sender.transfer(remittance.amount);
 
         return true;
     }
@@ -132,10 +131,10 @@ contract Remittance is Stoppable {
 
         emit WithdrawAmountLog(msg.sender, balance);
 
-        (bool success, ) = msg.sender.call{value : balance}(""); //For Xavier: msg.sender.call.value() is deprected.
-        require(success);
+        //(bool success, ) = msg.sender.call{value : balance}("");
+        //require(success);
 
-        //msg.sender.transfer(balance);
+        msg.sender.transfer(balance);
 
         return true;
     }
