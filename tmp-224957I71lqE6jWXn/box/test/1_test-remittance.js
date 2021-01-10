@@ -19,16 +19,9 @@ contract("Remittance", accounts => {
     //const INVALID_MIN_VALUE         = MIN_BLOCK_DURATION - 1;
     const INVALID_MAX_VALUE         = MAX_BLOCK_DURATION + 1;
 
-    const WEI_TOLLERANCE            = web3.utils.toBN(20000);
-
-    let showLog                     = true;             //Only to show results data
-    let showFullLog                 = true;             //Only to show full transaction data
-
     let contractCost;
 
-    let publicKey;
-
-    let owner, sender, exchanger, stranger;
+    let owner, sender, exchanger, stranger, stranger_2, stranger_3;
     let remittance;
 
     // ----------------------------------------------------------------------------------------------- BEFORE 

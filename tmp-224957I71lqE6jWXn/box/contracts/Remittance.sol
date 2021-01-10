@@ -114,7 +114,7 @@ contract Remittance is Stoppable {
         emit RemittanceStatusLog(_publicSecret, RemittanceState.Expired);
         emit WithdrawAmountLog(msg.sender, remittance.amount);
 
-        (bool success, ) = msg.sender.call{value : remittance.amount}("");
+        (bool success, ) = msg.sender.call{value : remittance.amount}(""); //For Xavier: msg.sender.call.value() is deprecated.
         require(success);
 
         //msg.sender.transfer(remittance.amount);
@@ -132,7 +132,7 @@ contract Remittance is Stoppable {
 
         emit WithdrawAmountLog(msg.sender, balance);
 
-        (bool success, ) = msg.sender.call{value : balance}(""); //For Xavier: msg.sender.call.value() is deprected.
+        (bool success, ) = msg.sender.call{value : balance}(""); //For Xavier: msg.sender.call.value() is deprecated.
         require(success);
 
         //msg.sender.transfer(balance);
