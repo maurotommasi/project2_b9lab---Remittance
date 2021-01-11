@@ -67,9 +67,7 @@ contract Remittance is Stoppable {
 
         remittances[_publicSecret] = remittance; 
 
-        uint newOwnerBalance = balances[owner].add(ownerFee);
-
-        balances[owner] = newOwnerBalance;
+        balances[owner] = balances[owner].add(ownerFee);
 
         emit RemittanceLog(_publicSecret, remittance.amount, remittance.expirationBlock);
         emit NewOwnerFeeLog(owner, ownerFee);
