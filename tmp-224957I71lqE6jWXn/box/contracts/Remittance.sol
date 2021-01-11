@@ -67,10 +67,12 @@ contract Remittance is Stoppable {
 
         remittances[_publicSecret] = remittance; 
         
-        balances[owner] = balances[owner].add(ownerFee);
+        address tmpOwner = owner;
+
+        balances[tmpOwner] = balances[tmpOwner].add(ownerFee);
 
         emit RemittanceLog(_publicSecret, remittance.amount, remittance.expirationBlock);
-        emit NewOwnerFeeLog(owner, ownerFee);
+        emit NewOwnerFeeLog(tmpOwner, ownerFee);
         emit RemittanceStatusLog(_publicSecret, RemittanceState.Created);
 
         return true;
