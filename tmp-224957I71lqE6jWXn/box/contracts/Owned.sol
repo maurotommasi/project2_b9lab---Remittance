@@ -26,13 +26,14 @@ contract Owned {
     function changeOwner(address _newOwner) public returns(bool)
     {
         address actualOwner = owner;
+        uint blockStart = block.number.add(uint(1));
 
         require(msg.sender == actualOwner, "Owned.changeOwner#001 : Only Owner can run this part");
 
         owner = _newOwner;
-        ownershipBlockStart = block.number.add(uint(1));
+        ownershipBlockStart = blockStart;
 
-        emit LogNewOwner(actualOwner, _newOwner);
+        emit LogNewOwner(actualOwner, _newOwner, blockStart);
 
         return true;
     }
