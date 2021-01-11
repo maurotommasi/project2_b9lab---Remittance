@@ -42,8 +42,8 @@ contract Remittance is Stoppable {
     }
 
     function generatePublicKey(address _sender, address _exchanger, bytes32 _secretBeneficiary, bytes32 _secretExchanger) public view returns(bytes32){
-        require(_secretBeneficiary != keccak256(abi.encode("")), "Remittance.generatePublicKey#001 : Beneficiary's Private Key can't be null");
-        require(_secretExchanger != keccak256(abi.encode("")), "Remittance.generatePublicKey#002 : Exchanger's Private Key can't ber null");
+        require(_secretBeneficiary != bytes32(0), "Remittance.generatePublicKey#001 : Beneficiary's Private Key can't be null");
+        require(_secretExchanger != bytes32(0), "Remittance.generatePublicKey#002 : Exchanger's Private Key can't ber null");
         return keccak256(abi.encodePacked(_sender, _exchanger, _secretBeneficiary, _secretExchanger, address(this)));        
     }
 
@@ -81,7 +81,7 @@ contract Remittance is Stoppable {
         Remittance memory remittance = remittances[_publicSecret];
 
         require(remittance.exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");
-        require(keccak256(abi.encodePacked(remittance.sender, msg.sender, _secretBeneficiary, _secretExchanger, address(this))) == _publicSecret, "Remittance.checkKeys#002 : Incorrect Data");
+        require(generatePublicKey(remittance.sender, msg.sender, _secretBeneficiary, _secretExchanger) == _publicSecret, "Remittance.checkKeys#002 : Incorrect Data");
         require(remittance.remittanceState == RemittanceState.Created, "Remittance.checkKeys#003 : Remittance state has to be created or already checked");                 
         require(remittance.expirationBlock >= block.number, "Remittance.checkKeys#004 : Expiration Block Dismatch");
 
@@ -140,7 +140,7 @@ contract Remittance is Stoppable {
 
     function changeMinDurationInterval(uint _min) public onlyOwner returns(bool){
 
-        require(max_duration > _min, "Remittance.changeMinDurationInterval#001 : Min value can't be greater than Max value");
+        require(max_duration >= _min, "Remittance.changeMinDurationInterval#001 : Min value can't be greater than Max value");
         require(min_duration != _min && _min != 0, "Remittance.changeMinDurationInterval#002 : Values are already set or Min Value equal to 0");
 
         min_duration = _min; 
@@ -150,7 +150,7 @@ contract Remittance is Stoppable {
 
     function changeMaxDurationInterval(uint _max) public onlyOwner returns(bool){
 
-        require(_max > min_duration, "Remittance.changeMaxDurationInterval#001 : Min value can't be greater than Max value");
+        require(_max >= min_duration, "Remittance.changeMaxDurationInterval#001 : Min value can't be greater than Max value");
         require(max_duration != _max, "Remittance.changeMaxDurationInterval#002 : Values are already set");
 
         max_duration = _max;
