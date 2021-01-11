@@ -66,7 +66,7 @@ contract Remittance is Stoppable {
         remittance.remittanceState = RemittanceState.Created;
 
         remittances[_publicSecret] = remittance; 
-
+        
         balances[owner] = balances[owner].add(ownerFee);
 
         emit RemittanceLog(_publicSecret, remittance.amount, remittance.expirationBlock);
