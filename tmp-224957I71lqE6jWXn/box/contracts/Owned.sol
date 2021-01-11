@@ -4,17 +4,23 @@ pragma solidity 0.6.10;
 
 contract Owned {
 
-    address internal owner;
-    
-    event LogNewOwner(address indexed oldOwner, address indexed newOwner);
+    address private owner;
+    uint private ownershipBlockStart;
+
+    event LogNewOwner(address indexed oldOwner, address indexed newOwner, uint ownershipBlockStart);
 
     modifier onlyOwner {
-        require(msg.sender == owner, "Owned.onlyOwner#001 : Only Owner can run this part");
+        require(msg.sender == owner && ownershipBlockStart >= block.number, "Owned.onlyOwner#001 : Only Owner can run this part");
         _;
     }
 
     constructor() public {
         owner = msg.sender;
+        ownershipBlockStart = block.number;
+    }
+
+    function getOwner() public view returns(address){
+        return owner;
     }
 
     function changeOwner(address _newOwner) public returns(bool)
@@ -24,6 +30,7 @@ contract Owned {
         require(msg.sender == actualOwner, "Owned.changeOwner#001 : Only Owner can run this part");
 
         owner = _newOwner;
+        ownershipBlockStart = block.number.add(uint(1));
 
         emit LogNewOwner(actualOwner, _newOwner);
 
