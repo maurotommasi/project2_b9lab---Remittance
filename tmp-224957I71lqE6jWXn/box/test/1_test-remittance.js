@@ -4,7 +4,7 @@ contract("Remittance", accounts => {
     
     const {soliditySha3, toBN} = web3.utils;
 
-    const REMITTANCE_STATUS         = {Null:0, Created:1, Checked:2, Expired:3};
+    //const REMITTANCE_STATUS         = {Null:0, Created:1, Checked:2, Expired:3};
     const OWNER_FEE                 = toBN(web3.utils.toWei('500', "gwei"));
     const MIN_BLOCK_DURATION        = 1;
     const MAX_BLOCK_DURATION        = 18;
@@ -116,13 +116,13 @@ contract("Remittance", accounts => {
             })
         })
 
-        it("Remittance.addFund#003 : Remittance State has to be Null", async function() {
+        it("Remittance.addFund#003 : Remittance data already used", async function() {
             try {
                 const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
                 assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
                 assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
             } catch(e) {
-                assert.strictEqual("Remittance.addFund#003 : Remittance State has to be Null", e.reason);
+                assert.strictEqual("Remittance.addFund#003 : Remittance data already used", e.reason);
             }
         })
         
@@ -342,10 +342,7 @@ contract("Remittance", accounts => {
             assert.strictEqual(txObj.logs[1].event, "NewOwnerFeeLog");
             assert.strictEqual(txObj.logs[1].args.who, owner, "Address Dismatch");
             assert.strictEqual(toBN(txObj.logs[1].args.amount).toString(10), OWNER_FEE.toString(10), txObj.logs[1].event + " : Owner Fee Dismatch");
-        
-            assert.strictEqual(txObj.logs[2].event, "RemittanceStatusLog");
-            assert.strictEqual(txObj.logs[2].args.publicSecret, publicSecret, txObj.logs[2].event + " : Public Secret Dismatch");
-            assert.strictEqual(parseInt(txObj.logs[2].args.remittanceState), parseInt(REMITTANCE_STATUS.Created), txObj.logs[2].event + " : Remittance Status Dismatch");
+
         })
 
         it("Remittance.checkKeys", async function() {
@@ -370,16 +367,13 @@ contract("Remittance", accounts => {
 
             // Check Log Data
 
-            assert.strictEqual(txObj.logs[0].event, "RemittanceStatusLog");
-            assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, txObj.logs[0].event + " : Public Secret Dismatch");
-            assert.strictEqual(parseInt(txObj.logs[0].args.remittanceState), parseInt(REMITTANCE_STATUS.Checked), txObj.logs[0].event + " : Remittance Status Dismatch");
-
-            assert.strictEqual(txObj.logs[1].event, "WithdrawAmountLog");
-            assert.strictEqual(txObj.logs[1].args.who, exchanger, "Address Dismatch");
+            assert.strictEqual(txObj.logs[0].event, "WithdrawRemittanceLog");
+            assert.strictEqual(txObj.logs[0].args.who, exchanger, "Address Dismatch");
+            assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, "publicSecret Dismatch");
 
             // Check User Data
 
-            const remittanceAmount = toBN(txObj.logs[1].args.amount);
+            const remittanceAmount = toBN(txObj.logs[0].args.amount);
             assert.strictEqual(toBN(Web3_exchanger_balance_before) - toBN(gasCost), toBN(Web3_exchanger_balance_after) - toBN(remittanceAmount));
 
         })
@@ -415,18 +409,20 @@ contract("Remittance", accounts => {
         const gasPrice = tx.gasPrice;
         const gasCost = gasPrice * txReceipt.gasUsed;
 
+        // Check Logic Null
+
+        const RemittanceMetaData = await remittance.remittances.call(publicSecret);
+        assert.strictEqual(toBN(RemittanceMetaData.amount).toString(10), toBN(0).toString(10));
+
         // Check Log Data
 
-        assert.strictEqual(txObj.logs[0].event, "RemittanceStatusLog");
-        assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, txObj.logs[0].event + " : Public Secret Dismatch");
-        assert.strictEqual(parseInt(txObj.logs[0].args.remittanceState), parseInt(REMITTANCE_STATUS.Expired), txObj.logs[0].event + " : Remittance Status Dismatch");
-
-        assert.strictEqual(txObj.logs[1].event, "WithdrawAmountLog");
-        assert.strictEqual(txObj.logs[1].args.who, sender, "Address Dismatch");
+        assert.strictEqual(txObj.logs[0].event, "WithdrawRemittanceLog");
+        assert.strictEqual(txObj.logs[0].args.who, sender, "Address Dismatch");
+        assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, "Address Dismatch");
 
         // Check User Data
 
-        const remittanceAmount = toBN(txObj.logs[1].args.amount);
+        const remittanceAmount = toBN(txObj.logs[0].args.amount);
 
         assert.strictEqual(toBN(Web3_sender_balance_before) - toBN(gasCost), toBN(Web3_sender_balance_after) - toBN(remittanceAmount));
        
@@ -455,7 +451,7 @@ contract("Remittance", accounts => {
 
             // Check Log Data
 
-            assert.strictEqual(txObj.logs[0].event, "WithdrawAmountLog");
+            assert.strictEqual(txObj.logs[0].event, "WithdrawBalanceLog");
             assert.strictEqual(txObj.logs[0].args.who, owner, "Address Dismatch");
 
             // Check User Data

@@ -9,14 +9,11 @@ contract Remittance is Stoppable {
 
     using SafeMath for uint; //Depracated from Solidity 0.8.0
 
-    enum RemittanceState {Null, Created, Checked, Expired}
-
     struct Remittance{
         address sender;
         address exchanger;
         uint    amount;
         uint    expirationBlock;
-        RemittanceState remittanceState;
     }
 
     uint public min_duration;
@@ -27,8 +24,8 @@ contract Remittance is Stoppable {
     mapping(address => uint) public balances;
 
     event RemittanceLog(bytes32 indexed publicSecret, uint amount, uint expirationBlock);
-    event RemittanceStatusLog(bytes32 publicSecret, RemittanceState remittanceState);
-    event WithdrawAmountLog(address indexed who, uint amount);
+    event WithdrawRemittanceLog(address indexed who, uint amount, bytes32 publicSecret);
+    event WithdrawBalanceLog(address indexed who, uint amount);
     event ChangeMinDurationLog(address indexed owner, uint min);
     event ChangeMaxDurationLog(address indexed owner, uint max);
     event NewOwnerFeeLog(address indexed who, uint amount);
@@ -51,8 +48,7 @@ contract Remittance is Stoppable {
 
         require(msg.value > uint(0), "Remittance.addFund#001 : msg.value can't be 0");
         require(_duration >= min_duration && _duration <= max_duration, "Remittance.addFund#002 : Duration doesn't match the interval"); 
-        
-        require(remittances[_publicSecret].remittanceState == RemittanceState.Null, "Remittance.addFund#003 : Remittance State has to be Null"); //Check duplicate
+        require(remittances[_publicSecret].expirationBlock == uint(0), "Remittance.addFund#003 : Remittance data already used"); //Check duplicate
 
         Remittance memory remittance;
         uint ownerFee = fee; 
@@ -63,17 +59,15 @@ contract Remittance is Stoppable {
         remittance.exchanger = _exchanger;
         remittance.amount = msg.value.sub(ownerFee);
         remittance.expirationBlock = block.number.add(_duration);
-        remittance.remittanceState = RemittanceState.Created;
 
         remittances[_publicSecret] = remittance; 
         
-        address tmpOwner = owner;
+        address tmpOwner = getOwner();
 
         balances[tmpOwner] = balances[tmpOwner].add(ownerFee);
 
         emit RemittanceLog(_publicSecret, remittance.amount, remittance.expirationBlock);
         emit NewOwnerFeeLog(tmpOwner, ownerFee);
-        emit RemittanceStatusLog(_publicSecret, RemittanceState.Created);
 
         return true;
     }
@@ -84,18 +78,15 @@ contract Remittance is Stoppable {
 
         require(remittance.exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");
         require(generatePublicKey(remittance.sender, msg.sender, _secretBeneficiary, _secretExchanger) == _publicSecret, "Remittance.checkKeys#002 : Incorrect Data");
-        require(remittance.remittanceState == RemittanceState.Created, "Remittance.checkKeys#003 : Remittance state has to be created or already checked");                 
+        require(remittance.amount > 0, "Remittance.checkKeys#003 : Remittance state has to be created or already checked");                 
         require(remittance.expirationBlock >= block.number, "Remittance.checkKeys#004 : Expiration Block Dismatch");
 
-        remittances[_publicSecret].remittanceState = RemittanceState.Checked;
+        remittances[_publicSecret].amount = uint(0);
 
-        emit RemittanceStatusLog(_publicSecret, RemittanceState.Checked);
-        emit WithdrawAmountLog(msg.sender, remittance.amount);
+        emit WithdrawRemittanceLog(msg.sender, remittance.amount, _publicSecret);
 
         (bool success, ) = msg.sender.call{value : remittance.amount}("");
         require(success);
-
-        //msg.sender.transfer(remittance.amount);
 
         return true;
 
@@ -106,18 +97,15 @@ contract Remittance is Stoppable {
         Remittance memory remittance = remittances[_publicSecret];
 
         require(remittance.sender == msg.sender, "Remittance.withdrawExpiredRemittance#001 : Only the sender can unlock this function");
-        require(remittance.remittanceState == RemittanceState.Created, "Remittance.withdrawExpiredRemittance#002 : Exhanger withdrawed yet or Remittance not created");
+        require(remittance.amount > 0, "Remittance.withdrawExpiredRemittance#002 : Exhanger withdrawed yet or Remittance not created");
         require(remittance.expirationBlock < block.number, "Remittance.withdrawExpiredRemittance#003 : Expiration Block Dismatch");
 
-        remittances[_publicSecret].remittanceState = RemittanceState.Expired;
+        remittances[_publicSecret].amount = uint(0);
 
-        emit RemittanceStatusLog(_publicSecret, RemittanceState.Expired);
-        emit WithdrawAmountLog(msg.sender, remittance.amount);
+        emit WithdrawRemittanceLog(msg.sender, remittance.amount, _publicSecret);
 
         (bool success, ) = msg.sender.call{value : remittance.amount}(""); //For Xavier: msg.sender.call.value() is deprecated.
         require(success);
-
-        //msg.sender.transfer(remittance.amount);
 
         return true;
     }
@@ -130,12 +118,10 @@ contract Remittance is Stoppable {
 
         balances[msg.sender] = uint(0);
 
-        emit WithdrawAmountLog(msg.sender, balance);
+        emit WithdrawBalanceLog(msg.sender, balance);
 
         (bool success, ) = msg.sender.call{value : balance}(""); //For Xavier: msg.sender.call.value() is deprecated.
         require(success);
-
-        //msg.sender.transfer(balance);
 
         return true;
     }
