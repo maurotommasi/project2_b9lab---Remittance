@@ -418,7 +418,7 @@ contract("Remittance", accounts => {
 
         assert.strictEqual(txObj.logs[0].event, "WithdrawRemittanceLog");
         assert.strictEqual(txObj.logs[0].args.who, sender, "Address Dismatch");
-        assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, "Address Dismatch");
+        assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, "publicSecret Dismatch");
 
         // Check User Data
 
