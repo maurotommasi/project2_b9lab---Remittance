@@ -14,14 +14,19 @@ contract Stoppable is Owned {
         require(isRunning, "Stoppable.onlyIfRunning#001 : It's not running");
         _;
     }
-    constructor () public {
-        isRunning = true;
+
+    function getIsRunning() public view returns(bool){
+        return isRunning;
+    }
+
+    constructor (bool _isRunning) public {
+        isRunning = _isRunning;
     }
 
     function runSwitch() public onlyOwner returns(bool){
-        bool actualRunning = isRunning;
-        isRunning = !actualRunning;
-        RunSwitchLog(msg.sender, !actualRunning);
+        bool newRunning = !isRunning;
+        isRunning = newRunning;
+        RunSwitchLog(msg.sender, newRunning);
         return true;
     }
 
