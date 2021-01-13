@@ -5,7 +5,7 @@ import "./SafeMath.sol";
 
 pragma solidity 0.6.10;
 
-contract Remittance is Stoppable {
+contract Remittance is Stoppable(true) {
 
     using SafeMath for uint; //Depracated from Solidity 0.8.0
 
@@ -47,7 +47,7 @@ contract Remittance is Stoppable {
     function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
 
         require(msg.value > uint(0), "Remittance.addFund#001 : msg.value can't be 0");
-        require(_duration >= min_duration && _duration <= max_duration, "Remittance.addFund#002 : Duration doesn't match the interval"); 
+        require(min_duration <= _duration && _duration <= max_duration, "Remittance.addFund#002 : Duration doesn't match the interval"); 
         require(remittances[_publicSecret].expirationBlock == uint(0), "Remittance.addFund#003 : Remittance data already used"); //Check duplicate
 
         Remittance memory remittance;
@@ -62,12 +62,12 @@ contract Remittance is Stoppable {
 
         remittances[_publicSecret] = remittance; 
         
-        address tmpOwner = getOwner();
+        address owner = getOwner();
 
-        balances[tmpOwner] = balances[tmpOwner].add(ownerFee);
+        balances[owner] = balances[owner].add(ownerFee);
 
         emit RemittanceLog(_publicSecret, remittance.amount, remittance.expirationBlock);
-        emit NewOwnerFeeLog(tmpOwner, ownerFee);
+        emit NewOwnerFeeLog(owner, ownerFee);
 
         return true;
     }
