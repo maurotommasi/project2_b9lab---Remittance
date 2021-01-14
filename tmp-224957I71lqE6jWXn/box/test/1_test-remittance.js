@@ -4,7 +4,6 @@ contract("Remittance", accounts => {
     
     const {soliditySha3, toBN} = web3.utils;
 
-    //const REMITTANCE_STATUS         = {Null:0, Created:1, Checked:2, Expired:3};
     const OWNER_FEE                 = toBN(web3.utils.toWei('500', "gwei"));
     const MIN_BLOCK_DURATION        = 1;
     const MAX_BLOCK_DURATION        = 18;
@@ -12,31 +11,24 @@ contract("Remittance", accounts => {
     const SECRET_EXCHANGER          = soliditySha3("One-Time-Password2");
     const DURATION_BLOCK            = 15;
     const AMOUNT                    = toBN(web3.utils.toWei('1000', "gwei"));
-
-    const INVALID_BYTES32           = [soliditySha3("55"), soliditySha3("0"), soliditySha3(0)];
+    const RUNNING                   = true;
+    const MAXGAS                    = 20000000;
     const NULL_BYTES32              = 0;
     const INVALID_DURATION          = [MIN_BLOCK_DURATION - 1, MAX_BLOCK_DURATION + 1]
-    const INVALID_SECRET            = soliditySha3("Invalid-Secret");
-    //const INVALID_MIN_VALUE         = MIN_BLOCK_DURATION - 1;
     const INVALID_MAX_VALUE         = MAX_BLOCK_DURATION + 1;
 
-    const SHOW_LOG                  = false;
     let contractCost;
 
     let owner, sender, exchanger, stranger, stranger_2, stranger_3;
     let remittance;
 
-    let test;
-
-    if(SHOW_LOG) console.log(accounts);
-       
     before("Should Set Accounts", async () => {
 
         assert.isAtLeast(accounts.length, 4, 'There should be at least 4 accounts to do this test');
 
         [owner, sender, exchanger, stranger, stranger_2, stranger_3] = accounts;
 
-        remittance = await Remittance.new(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, OWNER_FEE, {from : owner});
+        remittance = await Remittance.new(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, OWNER_FEE, RUNNING, MAXGAS, {from : owner});
 
         txReceipt = await web3.eth.getTransactionReceipt(remittance.transactionHash);
         const tx = await web3.eth.getTransaction(remittance.transactionHash);
@@ -44,32 +36,10 @@ contract("Remittance", accounts => {
         const gasCost = gasPrice * txReceipt.gasUsed;
         contractCost = gasCost;
 
-        if(SHOW_LOG) {
-
-            console.log(" ########## CONTRACT TRANSACTION DATA ##########");
-            console.log("Transaction Hash: ", remittance.transactionHash);
-            console.log("Gas Price: ", gasPrice);
-            console.log("Gas Used: ", txReceipt.gasUsed);
-            console.log("Contract Gas Cost (Wei): ", gasCost);
-            console.log("Actual Owner Fee: ", OWNER_FEE);
-
-            console.log(" ########## TEST DATA ##########");
-            console.log("Owner Fee: ", OWNER_FEE);
-            console.log("Min Block Duration: ", MIN_BLOCK_DURATION);
-            console.log("Max Block Duration: ", MAX_BLOCK_DURATION);
-            console.log("Secret Password Beneficiary: ", SECRET_BENEFICIARY);
-            console.log("Secret Password Exchanger ", SECRET_EXCHANGER);
-            console.log("Valid Duration Block for this interval: ", DURATION_BLOCK);
-
-            // Invalid Data
-
-            console.log("Invalid Bytes32 Data: ", INVALID_BYTES32[0]);
-            console.log("Invalid Durations: ,", INVALID_DURATION);
-        }
     });
     
     beforeEach("New Istance of Remittance", async () => {
-        remittance = await Remittance.new(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, OWNER_FEE, {from : owner});
+        remittance = await Remittance.new(MIN_BLOCK_DURATION, MAX_BLOCK_DURATION, OWNER_FEE, RUNNING, MAXGAS, {from : owner});
     });
 
     it("Check Max Fee Owner", () => {
@@ -142,34 +112,24 @@ contract("Remittance", accounts => {
             try {
                 const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
                 assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
-                assert(await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret, {from : stranger}));
+                assert(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger}));
             } catch(e) {
                 assert.strictEqual("Remittance.checkKeys#001 : Addresses Dismatch", e.reason);
             }
         })
 
-        it("Remittance.checkKeys#002 : Incorrect Data", async function() {
+        it("Remittance.checkKeys#002 : Remittance state has to be created or already checked", async function() {
             try {
                 const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
                 assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
-                assert(await remittance.checkKeys(INVALID_SECRET, SECRET_EXCHANGER, publicSecret, {from : exchanger}));
+                assert(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger}));
+                assert(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger}));
             } catch(e) {
-                assert.strictEqual("Remittance.checkKeys#002 : Incorrect Data", e.reason);
+                assert.strictEqual("Remittance.checkKeys#002 : Remittance state has to be created or already checked", e.reason);
             }
         })
 
-        it("Remittance.checkKeys#003 : Remittance state has to be created or already checked", async function() {
-            try {
-                const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
-                assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
-                assert(await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret, {from : exchanger}));
-                assert(await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret, {from : exchanger}));
-            } catch(e) {
-                assert.strictEqual("Remittance.checkKeys#003 : Remittance state has to be created or already checked", e.reason);
-            }
-        })
-
-        it("Remittance.checkKeys#004 : Expiration Block Dismatch", async function() {
+        it("Remittance.checkKeys#003 : Expiration Block Dismatch", async function() {
 
             const shortDuration = 1
 
@@ -187,10 +147,10 @@ contract("Remittance", accounts => {
 
                 //Will fail if it works!
 
-                assert(!(await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret_1, {from : exchanger}))); 
+                assert(!(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger}))); 
 
             } catch(e) {
-                assert.strictEqual("Remittance.checkKeys#004 : Expiration Block Dismatch", e.reason);
+                assert.strictEqual("Remittance.checkKeys#003 : Expiration Block Dismatch", e.reason);
             }
         })
 
@@ -224,7 +184,7 @@ contract("Remittance", accounts => {
                 const publicSecret_1 = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
                 assert(await remittance.addFund(exchanger, publicSecret_1, shortDuration, {from : sender, value : AMOUNT}));
 
-                assert(await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret_1, {from : exchanger})); // exchanger check keys
+                assert(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger})); // exchanger check keys
 
                  // Some new blocks
 
@@ -356,11 +316,11 @@ contract("Remittance", accounts => {
 
             // Exchanger Check the Keys
 
-            const txObj = await remittance.checkKeys(SECRET_BENEFICIARY, SECRET_EXCHANGER, publicSecret, {from : exchanger});
+            const txObj = await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger});
 
             const Web3_exchanger_balance_after = await web3.eth.getBalance(exchanger); //after checkKey
 
-            txReceipt = await web3.eth.getTransactionReceipt(txObj.receipt.transactionHash);
+            const txReceipt = txObj.receipt;
             const tx = await web3.eth.getTransaction(txObj.receipt.transactionHash);
             const gasPrice = tx.gasPrice;
             const gasCost = gasPrice * txReceipt.gasUsed;
@@ -368,7 +328,6 @@ contract("Remittance", accounts => {
             // Check Log Data
 
             assert.strictEqual(txObj.logs[0].event, "WithdrawRemittanceLog");
-            assert.strictEqual(txObj.logs[0].args.who, exchanger, "Address Dismatch");
             assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, "publicSecret Dismatch");
 
             // Check User Data
@@ -404,7 +363,7 @@ contract("Remittance", accounts => {
 
         // Transaction Information
 
-        txReceipt = await web3.eth.getTransactionReceipt(txObj.receipt.transactionHash);
+        const txReceipt = txObj.receipt;
         const tx = await web3.eth.getTransaction(txObj.receipt.transactionHash);
         const gasPrice = tx.gasPrice;
         const gasCost = gasPrice * txReceipt.gasUsed;
@@ -417,7 +376,6 @@ contract("Remittance", accounts => {
         // Check Log Data
 
         assert.strictEqual(txObj.logs[0].event, "WithdrawRemittanceLog");
-        assert.strictEqual(txObj.logs[0].args.who, sender, "Address Dismatch");
         assert.strictEqual(txObj.logs[0].args.publicSecret, publicSecret, "publicSecret Dismatch");
 
         // Check User Data
@@ -444,7 +402,7 @@ contract("Remittance", accounts => {
 
             // Transaction Information
 
-            txReceipt = await web3.eth.getTransactionReceipt(txObj.receipt.transactionHash);
+            const txReceipt = txObj.receipt;
             const tx = await web3.eth.getTransaction(txObj.receipt.transactionHash);
             const gasPrice = tx.gasPrice;
             const gasCost = gasPrice * txReceipt.gasUsed;
