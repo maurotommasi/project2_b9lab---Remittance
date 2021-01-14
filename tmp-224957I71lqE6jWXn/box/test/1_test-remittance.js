@@ -16,7 +16,7 @@ contract("Remittance", accounts => {
     const NULL_BYTES32              = 0;
     const INVALID_DURATION          = [MIN_BLOCK_DURATION - 1, MAX_BLOCK_DURATION + 1]
     const INVALID_MAX_VALUE         = MAX_BLOCK_DURATION + 1;
-
+    const INVALID_SECRET            = soliditySha3("Wrong-Password");
     let contractCost;
 
     let owner, sender, exchanger, stranger, stranger_2, stranger_3;
@@ -108,6 +108,16 @@ contract("Remittance", accounts => {
             }
         })
 
+        it("Remittance.checkKeys : Incorrect Data", async function() {
+            try {
+                const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
+                assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
+                assert(!(await remittance.checkKeys(sender, INVALID_SECRET, SECRET_EXCHANGER, publicSecret, {from : exchanger}))); //should fail
+            } catch(e) {
+                // PublicKey not created => Data not defined
+            }
+        })
+
         it("Remittance.checkKeys#001 : Addresses Dismatch", async function() {
             try {
                 const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
@@ -118,14 +128,14 @@ contract("Remittance", accounts => {
             }
         })
 
-        it("Remittance.checkKeys#002 : Remittance state has to be created or already checked", async function() {
+        it("Remittance.checkKeys#002 : Remittance has to be created or already checked", async function() {
             try {
                 const publicSecret = await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : sender});
                 assert(await remittance.addFund(exchanger, publicSecret, DURATION_BLOCK, {from : sender, value : AMOUNT}));
                 assert(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger}));
                 assert(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger}));
             } catch(e) {
-                assert.strictEqual("Remittance.checkKeys#002 : Remittance state has to be created or already checked", e.reason);
+                assert.strictEqual("Remittance.checkKeys#002 : Remittance has to be created or already checked", e.reason);
             }
         })
 

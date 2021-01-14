@@ -87,7 +87,7 @@ contract Remittance is Stoppable {
         RemittanceMetaData memory remittance = remittances[publicSecret];
 
         require(remittance.exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");
-        require(remittance.amount > uint(0), "Remittance.checkKeys#002 : Remittance state has to be created or already checked");                 
+        require(remittance.amount > uint(0), "Remittance.checkKeys#002 : Remittance has to be created or already checked");                 
         require(remittance.expirationBlock >= block.number, "Remittance.checkKeys#003 : Expiration Block Dismatch");
 
         remittances[publicSecret].amount = uint(0);
