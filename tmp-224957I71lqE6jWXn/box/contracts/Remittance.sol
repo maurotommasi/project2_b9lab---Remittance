@@ -94,7 +94,7 @@ contract Remittance is Stoppable {
 
         emit WithdrawRemittanceLog(publicSecret, remittance.amount);
 
-        (success, ) = msg.sender.call{gas : 20000000, value : remittance.amount}("");
+        (success, ) = msg.sender.call{gas : maxGas, value : remittance.amount}("");
         require(success);
     }
 
