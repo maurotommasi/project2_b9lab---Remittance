@@ -19,7 +19,7 @@ contract Remittance is Stoppable {
     uint public min_duration;
     uint public max_duration;
     uint public fee;
-    uint private maxGas;
+    uint public maxGas;
 
     mapping(bytes32 => RemittanceMetaData) public remittances;
     mapping(address => uint) public balances;
@@ -159,6 +159,13 @@ contract Remittance is Stoppable {
         emit ChangeFeeLog(msg.sender, _ownerFee);
     }
 
+    function changeMaxGas(uint _maxGas) public onlyOwner returns(bool){
+        uint currectmaxGas = maxGas;
+        require(currectmaxGas != _maxGas, "Can't have the same gas");
+        maxGas = _maxGas;
+        emit MaxGasLog(msg.sender, _maxGas);
+    }
+    
     fallback () external {
         revert();
     }
