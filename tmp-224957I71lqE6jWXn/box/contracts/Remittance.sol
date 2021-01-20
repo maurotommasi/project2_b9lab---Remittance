@@ -31,7 +31,8 @@ contract Remittance is Stoppable {
     event ChangeMaxDurationLog(address indexed owner, uint max);
     event NewOwnerFeeLog(address indexed who, uint amount);
     event ChangeFeeLog(address indexed owner, uint amount);
-
+    event MaxGasChangedLog(address indexed owner, uint maxGas);
+    
     constructor (uint _min_duration, uint _max_duration, uint _fee, bool _running, uint _maxGas) Stoppable(_running) public {
         require(_max_duration > _min_duration && _min_duration != uint(0));
         min_duration = _min_duration;
@@ -163,7 +164,7 @@ contract Remittance is Stoppable {
         uint currectmaxGas = maxGas;
         require(currectmaxGas != _maxGas, "Can't have the same gas");
         maxGas = _maxGas;
-        emit MaxGasLog(msg.sender, _maxGas);
+        emit MaxGasChangedLog(msg.sender, _maxGas);
     }
     
     fallback () external {

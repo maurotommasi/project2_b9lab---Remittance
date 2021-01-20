@@ -1,4 +1,5 @@
 const Remittance = artifacts.require("./Remittance.sol");
+const truffleAssert = require("truffle-assertions");
 
 contract("Remittance", accounts => {
     
@@ -33,7 +34,7 @@ contract("Remittance", accounts => {
         txReceipt = await web3.eth.getTransactionReceipt(remittance.transactionHash);
         const tx = await web3.eth.getTransaction(remittance.transactionHash);
         const gasPrice = tx.gasPrice;
-        const gasCost = gasPrice * txReceipt.gasUsed;
+        const gasCost = toBN(gasPrice).mul(toBN(txReceipt.gasUsed));
         contractCost = gasCost;
 
     });
@@ -52,7 +53,7 @@ contract("Remittance", accounts => {
 
         it("Remittance.generatePublicKey#001 : Beneficiary's Private Key can't be null - Bytes32 with 0 value is not accepted on EVM (bypass)", async function() {
             try {
-                assert(!(await remittance.generatePublicKey(sender, exchanger, NULL_BYTES32, SECRET_EXCHANGER, {from : sender})));
+                assert.isFalse(await remittance.generatePublicKey(sender, exchanger, NULL_BYTES32, SECRET_EXCHANGER, {from : sender}));
             } catch(e) {
                 assert((e.code == "INVALID_ARGUMENT" && e.coderType == "bytes32" && e.value == 0)); //error on EVM on bytes32 - I leave the require on solidity for safety check
             }
@@ -157,7 +158,7 @@ contract("Remittance", accounts => {
 
                 //Will fail if it works!
 
-                assert(!(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger}))); 
+                assert.isFalse(await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger})); 
 
             } catch(e) {
                 assert.strictEqual("Remittance.checkKeys#003 : Expiration Block Dismatch", e.reason);
@@ -198,11 +199,11 @@ contract("Remittance", accounts => {
 
                  // Some new blocks
 
-                 const publicSecret_4 = await remittance.generatePublicKey(stranger_2, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger_2});
-                 assert(await remittance.addFund(exchanger, publicSecret_4, DURATION_BLOCK, {from : stranger_2, value : AMOUNT})); 
+                 const publicSecret_2 = await remittance.generatePublicKey(stranger_2, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger_2});
+                 assert(await remittance.addFund(exchanger, publicSecret_2, DURATION_BLOCK, {from : stranger_2, value : AMOUNT})); 
  
-                 const publicSecret_5 = await remittance.generatePublicKey(stranger_3, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger_3});
-                 assert(await remittance.addFund(exchanger, publicSecret_5, DURATION_BLOCK, {from : stranger_3, value : AMOUNT}));
+                 const publicSecret_3 = await remittance.generatePublicKey(stranger_3, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger_3});
+                 assert(await remittance.addFund(exchanger, publicSecret_3, DURATION_BLOCK, {from : stranger_3, value : AMOUNT}));
 
                  // after expiration block
 
@@ -317,7 +318,7 @@ contract("Remittance", accounts => {
 
         it("Remittance.checkKeys", async function() {
 
-            const Web3_exchanger_balance_before = await web3.eth.getBalance(exchanger); //before checkKey
+            const web3ExchangerBalanceBefore = await web3.eth.getBalance(exchanger); //before checkKey
 
             // Sender Generate Public Secret and Add Fund
 
@@ -328,12 +329,12 @@ contract("Remittance", accounts => {
 
             const txObj = await remittance.checkKeys(sender, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : exchanger});
 
-            const Web3_exchanger_balance_after = await web3.eth.getBalance(exchanger); //after checkKey
+            const web3ExchangerBalanceAfter = await web3.eth.getBalance(exchanger); //after checkKey
 
             const txReceipt = txObj.receipt;
             const tx = await web3.eth.getTransaction(txObj.receipt.transactionHash);
             const gasPrice = tx.gasPrice;
-            const gasCost = gasPrice * txReceipt.gasUsed;
+            const gasCost = toBN(gasPrice).mul(toBN(txReceipt.gasUsed));
 
             // Check Log Data
 
@@ -343,7 +344,7 @@ contract("Remittance", accounts => {
             // Check User Data
 
             const remittanceAmount = toBN(txObj.logs[0].args.amount);
-            assert.strictEqual(toBN(Web3_exchanger_balance_before) - toBN(gasCost), toBN(Web3_exchanger_balance_after) - toBN(remittanceAmount));
+            assert.strictEqual(toBN(web3ExchangerBalanceBefore).sub(toBN(gasCost)).toString(10), toBN(web3ExchangerBalanceAfter).sub(toBN(remittanceAmount)).toString(10));
 
         })
   
@@ -365,18 +366,18 @@ contract("Remittance", accounts => {
 
         // Now is Expired
 
-        const Web3_sender_balance_before = await web3.eth.getBalance(sender); //before withdrawExpiredRemittance
+        const web3SenderBalanceBefore = await web3.eth.getBalance(sender); //before withdrawExpiredRemittance
 
         const txObj = await remittance.withdrawExpiredRemittance(publicSecret, {from : sender}); 
 
-        const Web3_sender_balance_after = await web3.eth.getBalance(sender); //after withdrawExpiredRemittance
+        const web3SenderBalanceAfter = await web3.eth.getBalance(sender); //after withdrawExpiredRemittance
 
         // Transaction Information
 
         const txReceipt = txObj.receipt;
         const tx = await web3.eth.getTransaction(txObj.receipt.transactionHash);
         const gasPrice = tx.gasPrice;
-        const gasCost = gasPrice * txReceipt.gasUsed;
+        const gasCost = toBN(gasPrice).mul(toBN(txReceipt.gasUsed));
 
         // Check Logic Null
 
@@ -392,7 +393,7 @@ contract("Remittance", accounts => {
 
         const remittanceAmount = toBN(txObj.logs[0].args.amount);
 
-        assert.strictEqual(toBN(Web3_sender_balance_before) - toBN(gasCost), toBN(Web3_sender_balance_after) - toBN(remittanceAmount));
+        assert.strictEqual(toBN(web3SenderBalanceBefore).sub(toBN(gasCost)).toString(10), toBN(web3SenderBalanceAfter).sub(toBN(remittanceAmount)).toString(10));
        
         })
 
@@ -415,7 +416,7 @@ contract("Remittance", accounts => {
             const txReceipt = txObj.receipt;
             const tx = await web3.eth.getTransaction(txObj.receipt.transactionHash);
             const gasPrice = tx.gasPrice;
-            const gasCost = gasPrice * txReceipt.gasUsed;
+            const gasCost = toBN(gasPrice).mul(toBN(txReceipt.gasUsed));
 
             // Check Log Data
 
@@ -426,7 +427,7 @@ contract("Remittance", accounts => {
 
             const feeAmount = toBN(txObj.logs[0].args.amount);
            
-            assert.strictEqual(toBN(Web3_owner_balance_before) - toBN(gasCost), toBN(Web3_owner_balance_after) - toBN(feeAmount));
+            assert.strictEqual(toBN(Web3_owner_balance_before).sub(toBN(gasCost)).toString(10), toBN(Web3_owner_balance_after).sub(toBN(feeAmount)).toString(10));
           
         });
     });
