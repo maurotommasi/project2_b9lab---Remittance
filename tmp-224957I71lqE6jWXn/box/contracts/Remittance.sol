@@ -16,8 +16,8 @@ contract Remittance is Stoppable {
         uint    expirationBlock;
     }
 
-    uint public min_duration;
-    uint public max_duration;
+    uint public minDuration;
+    uint public maxDuration;
     uint public fee;
     uint public maxGas;
 
@@ -33,10 +33,10 @@ contract Remittance is Stoppable {
     event ChangeFeeLog(address indexed owner, uint amount);
     event MaxGasChangedLog(address indexed owner, uint maxGas);
     
-    constructor (uint _min_duration, uint _max_duration, uint _fee, bool _running, uint _maxGas) Stoppable(_running) public {
-        require(_max_duration > _min_duration && _min_duration != uint(0));
-        min_duration = _min_duration;
-        max_duration = _max_duration;
+    constructor (uint _minDuration, uint _maxDuration, uint _fee, bool _running, uint _maxGas) Stoppable(_running) public {
+        require(_maxDuration > _minDuration && _minDuration != uint(0));
+        minDuration = _minDuration;
+        maxDuration = _maxDuration;
         fee = _fee;
         maxGas = _maxGas;
     }
@@ -53,20 +53,18 @@ contract Remittance is Stoppable {
     }
 
     function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
-        require(_exchanger != address(0x0) && _publicSecret != bytes32(0), "Remittance.addFund#000 : Invalid data");
-        require(msg.value > uint(0), "Remittance.addFund#001 : msg.value can't be 0");
-        require(min_duration <= _duration && _duration <= max_duration, "Remittance.addFund#002 : Duration doesn't match the interval"); 
-        require(remittances[_publicSecret].expirationBlock == uint(0), "Remittance.addFund#003 : Remittance data already used"); //Check duplicate
-
         uint ownerFee = fee; 
 
+        require(_exchanger != address(0x0) && _publicSecret != bytes32(0), "Remittance.addFund#000 : Invalid data");
+        require(minDuration <= _duration && _duration <= maxDuration, "Remittance.addFund#002 : Duration doesn't match the interval"); 
+        require(remittances[_publicSecret].expirationBlock == uint(0), "Remittance.addFund#003 : Remittance data already used"); //Check duplicate
         require(msg.value > ownerFee, "Remittance.addFund#004 : Msg.value has to be greater than owner fee");
 
         RemittanceMetaData memory remittance = RemittanceMetaData({
-            sender: msg.sender,
-            exchanger: _exchanger,
-            amount:  msg.value.sub(ownerFee),
-            expirationBlock: block.number.add(_duration)
+            sender:             msg.sender,
+            exchanger:          _exchanger,
+            amount:             msg.value.sub(ownerFee),
+            expirationBlock:    block.number.add(_duration)
         });
 
         remittances[_publicSecret] = remittance; 
@@ -81,38 +79,32 @@ contract Remittance is Stoppable {
     }
     
     function checkKeys(address _sender, bytes32 _secretBeneficiary, bytes32 _secretExchanger) external onlyIfRunning returns(bool success){
-        require(_sender != address(0x0), "Invalid address data");
-        require(_secretBeneficiary != bytes32(0) && _secretExchanger != bytes32(0), "Invalid bytes32 data");
-
         bytes32 publicSecret = generatePublicKey(_sender, msg.sender, _secretBeneficiary, _secretExchanger);
-        RemittanceMetaData memory remittance = remittances[publicSecret];
+        uint amount = remittances[publicSecret].amount;
 
-        require(remittance.exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");
-        require(remittance.amount > uint(0), "Remittance.checkKeys#002 : Remittance has to be created or already checked");                 
-        require(remittance.expirationBlock >= block.number, "Remittance.checkKeys#003 : Expiration Block Dismatch");
+        require(remittances[publicSecret].exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");         
+        require(remittances[publicSecret].expirationBlock >= block.number, "Remittance.checkKeys#003 : Expiration Block Dismatch");
 
-        remittances[publicSecret].amount = uint(0);
+        delete remittances[publicSecret];
 
-        emit WithdrawRemittanceLog(publicSecret, remittance.amount);
+        emit WithdrawRemittanceLog(publicSecret, amount);
 
-        (success, ) = msg.sender.call{gas : maxGas, value : remittance.amount}("");
+        (success, ) = msg.sender.call{gas : maxGas, value : amount}("");
         require(success);
     }
 
     function withdrawExpiredRemittance(bytes32 _publicSecret) external onlyIfRunning returns(bool success){
-        require(_publicSecret != bytes32(0), "Remittance.withdrawExpiredRemittance#000 : Invalid bytes32 data");
-
         RemittanceMetaData memory remittance = remittances[_publicSecret];
+        uint amount = remittances[_publicSecret].amount;
 
-        require(remittance.sender == msg.sender, "Remittance.withdrawExpiredRemittance#001 : Only the sender can unlock this function");
-        require(remittance.amount > 0, "Remittance.withdrawExpiredRemittance#002 : Exhanger withdrawed yet or Remittance not created");
-        require(remittance.expirationBlock < block.number, "Remittance.withdrawExpiredRemittance#003 : Expiration Block Dismatch");
+        require(remittances[_publicSecret].sender == msg.sender, "Remittance.withdrawExpiredRemittance#001 : Only the sender can unlock this function");
+        require(remittances[_publicSecret].expirationBlock < block.number, "Remittance.withdrawExpiredRemittance#003 : Expiration Block Dismatch");
 
-        remittances[_publicSecret].amount = uint(0);
+        delete remittances[_publicSecret];
 
-        emit WithdrawRemittanceLog(_publicSecret, remittance.amount);
+        emit WithdrawRemittanceLog(_publicSecret, amount);
 
-        (success, ) = msg.sender.call{gas: maxGas, value : remittance.amount}("");
+        (success, ) = msg.sender.call{gas: maxGas, value : amount}("");
         require(success);
 
     }
@@ -133,20 +125,20 @@ contract Remittance is Stoppable {
 
     function changeMinDurationInterval(uint _min) public onlyOwner returns(bool){
 
-        require(max_duration >= _min, "Remittance.changeMinDurationInterval#001 : Min value can't be greater than Max value");
-        require(min_duration != _min && _min != 0, "Remittance.changeMinDurationInterval#002 : Values are already set or Min Value equal to 0");
+        require(maxDuration >= _min, "Remittance.changeMinDurationInterval#001 : Min value can't be greater than Max value");
+        require(minDuration != _min && _min != 0, "Remittance.changeMinDurationInterval#002 : Values are already set or Min Value equal to 0");
 
-        min_duration = _min; 
+        minDuration = _min; 
 
         emit ChangeMinDurationLog(msg.sender, _min);
     }
 
     function changeMaxDurationInterval(uint _max) public onlyOwner returns(bool){
 
-        require(_max >= min_duration, "Remittance.changeMaxDurationInterval#001 : Min value can't be greater than Max value");
-        require(max_duration != _max, "Remittance.changeMaxDurationInterval#002 : Values are already set");
+        require(_max >= minDuration, "Remittance.changeMaxDurationInterval#001 : Min value can't be greater than Max value");
+        require(maxDuration != _max, "Remittance.changeMaxDurationInterval#002 : Values are already set");
 
-        max_duration = _max;
+        maxDuration = _max;
 
         emit ChangeMaxDurationLog(msg.sender, _max);
     }
