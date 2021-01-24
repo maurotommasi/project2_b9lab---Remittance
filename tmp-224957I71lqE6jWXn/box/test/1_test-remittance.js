@@ -56,7 +56,8 @@ contract("Remittance", accounts => {
             try {
                 await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, NULL_BYTES32, {from : sender});
             } catch(e) {
-                assert.strictEqual(e.code, "INVALID_ARGUMENT") && assert.strictEqual(e.coderType, "bytes32") && assert.strictEqual(e.value, 0);            }
+                assert.strictEqual(e.code, "INVALID_ARGUMENT") && assert.strictEqual(e.coderType, "bytes32") && assert.strictEqual(e.value, 0);            
+            }
         })
         
         INVALID_DURATION.forEach(invalidDurationValue => {
