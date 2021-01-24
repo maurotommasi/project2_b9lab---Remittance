@@ -85,7 +85,7 @@ contract Remittance is Stoppable {
         require(remittances[publicSecret].exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");         
         require(remittances[publicSecret].expirationBlock >= block.number, "Remittance.checkKeys#003 : Expiration Block Dismatch");
 
-        delete remittances[publicSecret];
+        delete remittances[publicSecret]; //everything is saved on logs
 
         emit WithdrawRemittanceLog(publicSecret, amount);
 
@@ -119,7 +119,7 @@ contract Remittance is Stoppable {
 
         emit WithdrawBalanceLog(msg.sender, balance);
 
-        (success, ) = msg.sender.call{gas: maxGas, value : balance}(""); //For Xavier: msg.sender.call.value() is deprecated.
+        (success, ) = msg.sender.call{gas: maxGas, value : balance}("");
         require(success);
     }
 

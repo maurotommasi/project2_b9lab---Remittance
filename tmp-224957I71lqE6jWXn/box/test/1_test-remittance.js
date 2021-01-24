@@ -19,13 +19,13 @@ contract("Remittance", accounts => {
     const INVALID_MAX_VALUE         = MAX_BLOCK_DURATION + 1;
     const INVALID_SECRET            = soliditySha3("Wrong-Password");
 
-    let owner, sender, exchanger, stranger, stranger_2, stranger_3;
+    let owner, sender, exchanger, stranger, stranger2, stranger_3;
     let remittance;
 
     before("Should Set Accounts", async () => {
         assert.isAtLeast(accounts.length, 4, 'There should be at least 4 accounts to do this test');
 
-        [owner, sender, exchanger, stranger, stranger_2, stranger_3] = accounts;
+        [owner, sender, exchanger, stranger, stranger2, stranger_3] = accounts;
     });
     
     beforeEach("New Istance of Remittance", async () => {
@@ -48,7 +48,7 @@ contract("Remittance", accounts => {
             try {
                 await remittance.generatePublicKey(sender, exchanger, NULL_BYTES32, SECRET_EXCHANGER, {from : sender});
             } catch(e) {
-                assert((e.code == "INVALID_ARGUMENT" && e.coderType == "bytes32" && e.value == 0)); //error on EVM on bytes32 - I leave the require on solidity for safety check
+                assert.strictEqual(e.code, "INVALID_ARGUMENT") && assert.strictEqual(e.coderType, "bytes32") && assert.strictEqual(e.value, "INVALID_ARGUMENT");              
             }
         })
 
@@ -56,8 +56,7 @@ contract("Remittance", accounts => {
             try {
                 await remittance.generatePublicKey(sender, exchanger, SECRET_BENEFICIARY, NULL_BYTES32, {from : sender});
             } catch(e) {
-                 assert((e.code == "INVALID_ARGUMENT" && e.coderType == "bytes32" && e.value == 0)); //error on EVM on bytes32 - I leave the require on solidity for safety check
-            }
+                assert.strictEqual(e.code, "INVALID_ARGUMENT") && assert.strictEqual(e.coderType, "bytes32") && assert.strictEqual(e.value, "INVALID_ARGUMENT");            }
         })
         
         INVALID_DURATION.forEach(invalidDurationValue => {
@@ -307,8 +306,8 @@ contract("Remittance", accounts => {
             const publicSecret2 = await remittance.generatePublicKey(stranger, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger});
             await remittance.addFund(exchanger, publicSecret2, DURATION_BLOCK, {from : stranger, value : AMOUNT}); 
 
-            const publicSecret3 = await remittance.generatePublicKey(stranger_2, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger_2});
-            await remittance.addFund(exchanger, publicSecret3, DURATION_BLOCK, {from : stranger_2, value : AMOUNT});
+            const publicSecret3 = await remittance.generatePublicKey(stranger2, exchanger, SECRET_BENEFICIARY, SECRET_EXCHANGER, {from : stranger2});
+            await remittance.addFund(exchanger, publicSecret3, DURATION_BLOCK, {from : stranger2, value : AMOUNT});
 
             // Now is Expired
 
@@ -344,7 +343,7 @@ contract("Remittance", accounts => {
             })
 
         it("Remittance.withdrawBalance", async function() {
-            const Web3_owner_balance_before = await web3.eth.getBalance(owner);
+            const web3OwnerBalanceBefore = await web3.eth.getBalance(owner);
 
             // Sender Generate Public Secret and Add Fund
 
@@ -355,7 +354,7 @@ contract("Remittance", accounts => {
 
             const txObj = await remittance.withdrawBalance({from : owner});
 
-            const Web3_owner_balance_after = await web3.eth.getBalance(owner);
+            const web3OwnerBalanceAfter = await web3.eth.getBalance(owner);
 
             // Transaction Information
 
@@ -373,7 +372,7 @@ contract("Remittance", accounts => {
 
             const feeAmount = toBN(txObj.logs[0].args.amount);
             
-            assert.strictEqual(toBN(Web3_owner_balance_before).sub(toBN(gasCost)).toString(10), toBN(Web3_owner_balance_after).sub(toBN(feeAmount)).toString(10));
+            assert.strictEqual(toBN(web3OwnerBalanceBefore).sub(toBN(gasCost)).toString(10), toBN(web3OwnerBalanceAfter).sub(toBN(feeAmount)).toString(10));
             
         });
     });
@@ -411,7 +410,7 @@ contract("Remittance", accounts => {
 
             it("Owned.changeOwner#001 : Only Owner can run this part", async function() {
                 try {
-                    await remittance.changeOwner(stranger_2, {from : stranger});
+                    await remittance.changeOwner(stranger2, {from : stranger});
                 } catch(e) {
                     assert.strictEqual("Owned.changeOwner#001 : Only Owner can run this part", e.reason);
                 }
