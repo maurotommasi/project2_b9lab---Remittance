@@ -45,11 +45,11 @@ contract Remittance is Stoppable {
         return maxGas;
     }
 
-    function generatePublicKey(address _sender, address _exchanger, bytes32 _secretBeneficiary, bytes32 _secretExchanger) public view returns(bytes32){
-        require(_sender != address(0x0) && _exchanger != address(0x0),  "Remittance.generatePublicKey#000 : Invalid data");
+    function generatePublicKey(address _exchanger, bytes32 _secretBeneficiary, bytes32 _secretExchanger) public view returns(bytes32){
+        require(_exchanger != address(0x0),  "Remittance.generatePublicKey#000 : Invalid data");
         require(_secretBeneficiary != bytes32(0), "Remittance.generatePublicKey#001 : Beneficiary's Private Key can't be null");
         require(_secretExchanger != bytes32(0), "Remittance.generatePublicKey#002 : Exchanger's Private Key can't ber null");
-        return keccak256(abi.encodePacked(_sender, _exchanger, _secretBeneficiary, _secretExchanger, address(this)));        
+        return keccak256(abi.encodePacked(msg.sender, _exchanger, _secretBeneficiary, _secretExchanger, address(this)));        
     }
 
     function addFund(address _exchanger, bytes32 _publicSecret, uint _duration) external payable onlyIfRunning returns(bool){
@@ -77,15 +77,16 @@ contract Remittance is Stoppable {
 
         return true;
     }
-    
-    function checkKeys(address _sender, bytes32 _secretBeneficiary, bytes32 _secretExchanger) external onlyIfRunning returns(bool success){
-        bytes32 publicSecret = generatePublicKey(_sender, msg.sender, _secretBeneficiary, _secretExchanger);
-        uint amount = remittances[publicSecret].amount;
 
-        require(remittances[publicSecret].exchanger == msg.sender, "Remittance.checkKeys#001 : Addresses Dismatch");         
+    function checkKeys(address _sender, bytes32 _secretBeneficiary, bytes32 _secretExchanger) external onlyIfRunning returns(bool success){
+        bytes32 publicSecret = keccak256(abi.encodePacked(_sender, msg.sender, _secretBeneficiary, _secretExchanger, address(this)));
+        uint amount = remittances[publicSecret].amount;
+    
         require(remittances[publicSecret].expirationBlock >= block.number, "Remittance.checkKeys#003 : Expiration Block Dismatch");
 
-        delete remittances[publicSecret]; //everything is saved on logs
+        delete remittances[publicSecret].sender;
+        delete remittances[publicSecret].exchanger;
+        delete remittances[publicSecret].amount;
 
         emit WithdrawRemittanceLog(publicSecret, amount);
 
@@ -94,7 +95,6 @@ contract Remittance is Stoppable {
     }
 
     function withdrawExpiredRemittance(bytes32 _publicSecret) external onlyIfRunning returns(bool success){
-        RemittanceMetaData memory remittance = remittances[_publicSecret];
         uint amount = remittances[_publicSecret].amount;
 
         require(remittances[_publicSecret].sender == msg.sender, "Remittance.withdrawExpiredRemittance#001 : Only the sender can unlock this function");
